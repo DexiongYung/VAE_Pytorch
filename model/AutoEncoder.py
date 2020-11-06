@@ -11,8 +11,13 @@ class AutoEncoder(nn.Module):
 
     def forward(self, X: torch.Tensor, X_lengths: torch.Tensor):
         Z, mu, sigmas = self.encoder.forward(X, X_lengths)
-        probs = self.decoder.forward(Z, X, X_lengths)
+        probs = self.decoder.forward(Z, X)
         return probs, mu, sigmas
+
+    def test(self, X: torch.Tesnor, X_lengths: torch.Tensor):
+        Z, mu, sigmas = self.encoder.forward(X, X_lengths)
+        probs = self.decoder.test(Z, X)
+        return probs
 
     def checkpoint(self, path: str):
         torch.save(self.state_dict(), path)
@@ -94,7 +99,7 @@ class Decoder(nn.Module):
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
 
-    def forward(self, Z: torch.Tensor, X: torch.Tensor, X_lengths: torch.Tensor, H=None):
+    def forward(self, Z: torch.Tensor, X: torch.Tensor, H=None):
         batch_size = X.shape[0]
         sequence_length = X.shape[1]
 
@@ -114,6 +119,26 @@ class Decoder(nn.Module):
                 probs = self.softmax(fc1_out)
             else:
                 probs = torch.cat((probs, self.softmax(fc1_out)), dim=1)
+
+        return probs
+
+    def test(self, Z: torch.Tensor, X: torch.Tensor, max_length: int, H=None):
+        batch_size = X.shape[0]
+        sequence_length = X.shape[1]
+
+        if H is None:
+            H = self.__init_hidden(batch_size)
+
+        X_embed = self.word_embedding(X)
+
+        probs = None
+
+        for i in range(max_length):
+            input = torch.cat((X_embed[:, i, :], Z), dim=1).unsqueeze(1)
+            lstm_out, H = self.lstm(input, H)
+            fc1_out = self.fc1(lstm_out)
+            probs = self.softmax(fc1_out)
+            torch.argmax(probs, dim=2)
 
         return probs
 

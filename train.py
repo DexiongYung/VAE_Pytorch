@@ -8,7 +8,7 @@ import torch
 parser = argparse.ArgumentParser()
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=20)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=250)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=200)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
@@ -104,10 +104,9 @@ for epoch in range(args.num_epochs):
         cost = test(model, x, l, y)
 
         test_loss.append(cost.item())
-    
+
     total_train_loss.append(np.mean(train_loss))
     total_test_loss.append(np.mean(test_loss))
 
     plot_losses(total_train_loss, filename='train.png')
     plot_losses(total_test_loss, filename='test.png')
-

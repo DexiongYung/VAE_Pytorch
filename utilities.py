@@ -4,6 +4,7 @@ import collections
 import string
 import matplotlib.pyplot as plt
 
+
 def plot_losses(losses, folder: str = "plot", filename: str = "checkpoint.png"):
     x = list(range(len(losses)))
     plt.plot(x, losses, 'b--', label="Unsupervised Loss")
@@ -13,6 +14,7 @@ def plot_losses(losses, folder: str = "plot", filename: str = "checkpoint.png"):
     plt.legend(loc='upper left')
     plt.savefig(f"{folder}/{filename}")
     plt.close()
+
 
 def load_data(n, SOS: str = '[', EOS: str = ']', PAD: str = '$'):
     df = pd.read_csv(n)
