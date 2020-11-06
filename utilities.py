@@ -18,7 +18,7 @@ def load_data(n, SOS: str = '[', EOS: str = ']', PAD: str = '$'):
     df = pd.read_csv(n)
     names = df['name'].tolist()
     seq_length = df['name'].str.len().max() + 1
-    chars = string.ascii_letters
+    chars = set(df.raw_value.sum())
     vocab = dict(zip(chars, range(len(chars))))
 
     len_chars = len(chars)

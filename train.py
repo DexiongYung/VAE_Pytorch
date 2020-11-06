@@ -25,7 +25,7 @@ parser.add_argument('--weight_dir', help='save dir',
                     type=str, default='weight/')
 args = parser.parse_args()
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = "cpu"
 
 
 def fit(model, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
