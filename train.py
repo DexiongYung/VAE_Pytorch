@@ -8,7 +8,7 @@ import torch
 parser = argparse.ArgumentParser()
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=20)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=128)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=64)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)

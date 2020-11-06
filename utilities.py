@@ -18,15 +18,10 @@ def load_data(n, SOS: str = '[', EOS: str = ']', PAD: str = '$'):
     df = pd.read_csv(n)
     names = df['name'].tolist()
     seq_length = df['name'].str.len().max() + 1
-    chars = set(df.raw_value.sum())
+    chars = string.ascii_letters + SOS + EOS + PAD
     vocab = dict(zip(chars, range(len(chars))))
 
-    len_chars = len(chars)
-
-    pad_idx = len_chars + 2
-    vocab[SOS] = len_chars + 1
-    vocab[EOS] = len_chars + 2
-    vocab[PAD] = len_chars + 3
+    pad_idx = vocab[PAD]
 
     names_length = np.array([len(n)+1 for n in names])
     names_input = [(SOS+s).ljust(seq_length, PAD) for s in names]

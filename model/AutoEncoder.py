@@ -19,14 +19,6 @@ class AutoEncoder(nn.Module):
 
 
 class Encoder(nn.Module):
-    """
-    Takes in an one-hot tensor of names and produces hidden state and cell state
-    for decoder LSTM to use.
-
-    input_size: N_LETTER
-    hidden_size: Size of the hidden dimension
-    """
-
     def __init__(self, vocab: dict, pad_idx: int, device: str, args):
         super(Encoder, self).__init__()
         self.input_size = len(vocab)
@@ -39,7 +31,7 @@ class Encoder(nn.Module):
 
         self.word_embedding = nn.Embedding(
             num_embeddings=self.input_size,
-            embedding_dim=args.word_embed_dim,
+            embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
         torch.nn.init.uniform_(self.word_embedding.weight)
@@ -56,7 +48,7 @@ class Encoder(nn.Module):
         return sample
 
     def forward(self, X: torch.Tensor, X_lengths: torch.Tensor, H=None):
-        batch_size = X.shape[1]
+        batch_size = X.shape[0]
 
         if H is None:
             H = self.__init_hidden(batch_size)
