@@ -14,6 +14,9 @@ class AutoEncoder(nn.Module):
         probs = self.decoder.forward(Z, X, X_lengths)
         return probs, mu, sigmas
 
+    def checkpoint(self, path: str):
+        torch.save(self.state_dict(), path)
+
 
 class Encoder(nn.Module):
     """

@@ -1,5 +1,5 @@
 from model.AutoEncoder import AutoEncoder
-from utilities import load_data
+from utilities import load_data, plot_losses
 import torch.optim as optim
 import numpy as np
 import argparse
@@ -66,6 +66,9 @@ names_input, names_output, vocab, names_length, pad_idx = load_data(
 model = AutoEncoder(vocab, pad_idx, args.max_name_length, DEVICE, args)
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
+total_train_loss = []
+total_test_loss = []
+
 for epoch in range(args.num_epochs):
     train_loss = []
     test_loss = []
@@ -88,7 +91,9 @@ for epoch in range(args.num_epochs):
 
         cost = fit(model, optimizer, x, l, y)
 
-        train_loss.append(cost)
+        train_loss.append(cost.item())
+
+        model.checkpoint('weight/checkpoint.path.tar')
 
     for iteration in range(len(test_names_input)//args.batch_size):
         n = np.random.randint(len(test_names_input), size=args.batch_size)
@@ -98,4 +103,11 @@ for epoch in range(args.num_epochs):
 
         cost = test(model, x, l, y)
 
-        test_loss.append(cost)
+        test_loss.append(cost.item())
+    
+    total_train_loss.append(np.mean(train_loss))
+    total_test_loss.append(np.mean(test_loss))
+
+    plot_losses(total_train_loss, filename='train.png')
+    plot_losses(total_test_loss, filename='test.png')
+
