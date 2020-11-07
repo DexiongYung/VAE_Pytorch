@@ -14,13 +14,16 @@ class AutoEncoder(nn.Module):
         probs = self.decoder.forward(Z, X)
         return probs, mu, sigmas
 
-    def test(self, X: torch.Tesnor, X_lengths: torch.Tensor):
+    def test(self, X: torch.Tensor, X_lengths: torch.Tensor):
         Z, mu, sigmas = self.encoder.forward(X, X_lengths)
         probs = self.decoder.test(Z, X)
         return probs
 
     def checkpoint(self, path: str):
         torch.save(self.state_dict(), path)
+    
+    def load(self, path:str):
+        self.load_state_dict(torch.load(path))
 
 
 class Encoder(nn.Module):

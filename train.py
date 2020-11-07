@@ -4,8 +4,11 @@ import torch.optim as optim
 import numpy as np
 import argparse
 import torch
+import json
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--name',
+                    help='Session name', type=str, default='new_setup')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=20)
 parser.add_argument('--batch_size', help='batch_size', type=int, default=200)
@@ -23,6 +26,10 @@ parser.add_argument('--name_file', help='CSVs of names for training and testing'
 parser.add_argument('--plot_dir', help='save dir', type=str, default='plot/')
 parser.add_argument('--weight_dir', help='save dir',
                     type=str, default='weight/')
+parser.add_argument('--save_every',
+                    help='Number of iterations before saving', type=int, default=200)
+parser.add_argument('--continue_train',
+                    help='Continue training', type=bool, default=False)
 args = parser.parse_args()
 
 DEVICE = "cpu"
@@ -61,6 +68,16 @@ def ELBO_loss(Y_hat, Y, mu, logvar):
     return loss + KL_divergence
 
 
+if args.continue_train:
+    json_file = json.load(open(f'json/{args.name}.json', 'r'))
+    t_args = argparse.Namespace()
+    t_args.__dict__.update(json_file)
+    args = parser.parse_args(namespace=t_args)
+    model.load(f'weight/{args.name}')
+else:
+    with open(f'json/{args.name}.json', 'wt') as f:
+        json.dump(vars(args), f)
+
 names_input, names_output, vocab, names_length, pad_idx = load_data(
     args.name_file)
 model = AutoEncoder(vocab, pad_idx, args.max_name_length, DEVICE, args)
@@ -93,7 +110,11 @@ for epoch in range(args.num_epochs):
 
         train_loss.append(cost.item())
 
-        model.checkpoint('weight/checkpoint.path.tar')
+        if iteration % args.save_every == 0:
+            model.checkpoint(f'weight/{args.name}.path.tar')
+            total_train_loss.append(np.mean(train_loss))
+            plot_losses(total_train_loss, filename=f'{args.name}_train.png')
+            train_loss = []
 
     for iteration in range(len(test_names_input)//args.batch_size):
         n = np.random.randint(len(test_names_input), size=args.batch_size)
@@ -105,8 +126,7 @@ for epoch in range(args.num_epochs):
 
         test_loss.append(cost.item())
 
-    total_train_loss.append(np.mean(train_loss))
-    total_test_loss.append(np.mean(test_loss))
-
-    plot_losses(total_train_loss, filename='train.png')
-    plot_losses(total_test_loss, filename='test.png')
+        if iteration % args.save_every == 0:
+            total_test_loss.append(np.mean(test_loss))
+            plot_losses(total_test_loss, filename='test.png')
+            test_loss = []
