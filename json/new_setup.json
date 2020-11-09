@@ -1,0 +1,1 @@
+{"name": "new_setup", "max_name_length": 20, "batch_size": 200, "latent_size": 200, "RNN_hidden_size": 512, "word_embed_dim": 16, "num_layers": 3, "num_epochs": 10000, "lr": 0.0001, "name_file": "data/first.csv", "plot_dir": "plot/", "weight_dir": "weight/", "save_every": 200, "continue_train": false}
