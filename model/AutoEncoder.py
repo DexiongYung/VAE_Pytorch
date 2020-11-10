@@ -157,9 +157,12 @@ class NeuralNet(nn.Module):
     def __init__(self, input_size: int, output_size: int):
         super(NeuralNet, self).__init__()
         self.ll = nn.Linear(input_size, output_size)
+        # Molecular VAE initializes linear layer using Xavier
         torch.nn.init.xavier_uniform_(self.ll.weight)
-        self.selu = nn.SELU()
+        # Trying out SELU, Molecular VAE doesn't use any activations
+        #self.selu = nn.SELU()
 
     def forward(self, X: torch.Tensor):
         X = self.ll(X)
-        return self.selu(X)
+        return X
+        #return self.selu(X)
