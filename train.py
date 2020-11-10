@@ -82,7 +82,7 @@ else:
     args.sos_idx = sos_idx
     args.pad_idx = pad_idx
     args.eos_idx = eos_idx
-    with open(f'json/{args.name}.json', 'wt') as f:
+    with open(f'json/{args.name}.json', 'w') as f:
         json.dump(vars(args), f)
 
 model = AutoEncoder(c_to_n_vocab, sos_idx, pad_idx, DEVICE, args)
