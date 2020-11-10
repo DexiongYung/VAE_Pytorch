@@ -112,7 +112,7 @@ class Decoder(nn.Module):
 
         embeded_input = self.word_embedding(input)
 
-        logits = None
+        all_logits = None
         input = torch.cat((Z, embeded_input.repeat(
             (batch_size, 1))), dim=1).unsqueeze(1)
 
@@ -125,11 +125,11 @@ class Decoder(nn.Module):
             input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
 
             if i == 0:
-                logits = logits
+                all_logits = logits
             else:
-                logits = torch.cat((logits, logits), dim=1)
+                all_logits = torch.cat((all_logits, logits), dim=1)
 
-        return logits, self.softmax(logits)
+        return all_logits, self.softmax(all_logits)
 
     def __init_hidden(self, batch_size: int):
         return (torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device),
