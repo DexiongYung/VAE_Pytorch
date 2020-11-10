@@ -13,7 +13,7 @@ parser.add_argument('--name',
                     help='Session name', type=str, default='no_selu_setup')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=128)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=200)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
@@ -39,7 +39,8 @@ DEVICE = "cpu"
 def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.train()
     optimizer.zero_grad()
-    logits, probs, mu, sigmas = model.forward(X, X_lengths, is_teacher_force=True)
+    logits, probs, mu, sigmas = model.forward(
+        X, X_lengths, is_teacher_force=True)
     pad_idx = model.pad_idx
     loss = ELBO_loss(logits, Y, mu, sigmas, pad_idx)
     loss.backward()

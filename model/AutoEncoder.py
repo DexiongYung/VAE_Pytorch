@@ -18,7 +18,7 @@ class AutoEncoder(nn.Module):
 
         Z, mu, sigmas = self.encoder.forward(X, X_lengths)
         if is_teacher_force:
-            logits, probs = self.decoder.forward(X, Z, is_teacher_force=True)
+            logits, probs = self.decoder.forward(X, Z, X_lengths=X_lengths)
         else:
             decoder_input = torch.LongTensor([self.sos_idx]).to(self.device)
             logits, probs = self.decoder.forward(decoder_input, Z, max_len)
@@ -111,6 +111,7 @@ class Decoder(nn.Module):
             embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
+        self.pad_idx = pad_idx
         # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
         torch.nn.init.uniform_(self.char_embedder.weight, -0.1, 0.1)
         self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
@@ -118,8 +119,9 @@ class Decoder(nn.Module):
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
 
-    def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, H=None, is_teacher_force: bool = False):
+    def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, H=None, X_lengths: torch.Tensor = None):
         batch_size = Z.shape[0]
+        is_teacher_force = X_lengths is not None
 
         if H is None:
             H = self.__init_hidden(batch_size)
@@ -131,28 +133,33 @@ class Decoder(nn.Module):
             max_len = X.shape[1]
             input = torch.cat((Z.unsqueeze(1).repeat(
                 (1, max_len, 1)), embeded_input), dim=2)
+            X_ps = torch.nn.utils.rnn.pack_padded_sequence(
+                input, X_lengths, enforce_sorted=False, batch_first=True)
+            out_ps, H = self.lstm(X_ps, H)
+            lstm_outs, _ = torch.nn.utils.rnn.pad_packed_sequence(
+                out_ps, batch_first=True, padding_value=self.pad_idx, total_length=max_len)
+            lstm_outs = lstm_outs.reshape((batch_size * max_len, -1))
+            fc1_outs = self.fc1(lstm_outs)
+            all_logits = fc1_outs.reshape((batch_size, max_len, -1))
         else:
+            all_logits = None
+
             # All inputs should have Z appended to input
             input = torch.cat((Z, embeded_input.repeat(
                 (batch_size, 1))), dim=1).unsqueeze(1)
 
-        all_logits = None
-        for i in range(max_len):
-            if is_teacher_force:
-                lstm_out, H = self.lstm(input[:, i, :].unsqueeze(1), H)
-                logits = self.fc1(lstm_out)
-            else:
+            for i in range(max_len):
                 lstm_out, H = self.lstm(input, H)
                 logits = self.fc1(lstm_out)
                 max_chars = torch.argmax(logits, dim=2).squeeze(1)
                 embeded_input = self.char_embedder(max_chars)
                 input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
 
-            # Save logits for back prop
-            if i == 0:
-                all_logits = logits
-            else:
-                all_logits = torch.cat((all_logits, logits), dim=1)
+                # Save logits for back prop
+                if i == 0:
+                    all_logits = logits
+                else:
+                    all_logits = torch.cat((all_logits, logits), dim=1)
 
         # Return logits and probs
         return all_logits, self.softmax(all_logits)
