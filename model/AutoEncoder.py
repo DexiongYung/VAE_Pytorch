@@ -55,10 +55,14 @@ class Encoder(nn.Module):
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
 
-    def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor):
+    def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor, m: int = 0, d: int = 1):
+        batch_size = mu.shape[0]
+        latent_size = mu.shape[1]
         sd = torch.exp(0.5 * log_sigma)
         # Molecular VAE multiplied std by sample from normal with SD 1 and mu 0
-        eps = torch.distributions.Normal(0, 1).sample()
+        mu_tensor = torch.zeros((batch_size, latent_size)) + m
+        sd_tensor = torch.zeros((batch_size, latent_size)) + d
+        eps = torch.distributions.Normal(mu_tensor, sd_tensor).sample()
         sample = mu + (eps * sd)
 
         return sample
