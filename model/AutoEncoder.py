@@ -2,6 +2,11 @@ import torch
 import torch.nn as nn
 
 
+def init_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str):
+    return (torch.zeros(num_layers, batch_size, hidden_size).to(device),
+            torch.zeros(num_layers, batch_size, hidden_size).to(device))
+
+
 class AutoEncoder(nn.Module):
     def __init__(self, vocab: dict, sos_idx, pad_idx: int, device: str, args):
         super(AutoEncoder, self).__init__()
@@ -68,7 +73,8 @@ class Encoder(nn.Module):
 
     def forward(self, X: torch.Tensor, X_lengths: torch.Tensor):
         batch_size = X.shape[0]
-        H = self.__init_hidden(batch_size)
+        H = init_hidden(self.num_layers, batch_size,
+                        self.hidden_size, self.device)
         X_embed = self.char_embedder(X)
         # Pack padded sequence
         X_pps = torch.nn.utils.rnn.pack_padded_sequence(
@@ -88,10 +94,6 @@ class Encoder(nn.Module):
         z = self.reparam_trick(mu, sigmas)
 
         return z, mu, sigmas
-
-    def __init_hidden(self, batch_size: int, dtype=torch.float32):
-        return (torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=dtype).to(self.device),
-                torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=dtype).to(self.device))
 
 
 class Decoder(nn.Module):
@@ -119,7 +121,8 @@ class Decoder(nn.Module):
     def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, X_lengths: torch.Tensor = None):
         batch_size = Z.shape[0]
         is_teacher_force = X_lengths is not None
-        H = self.__init_hidden(batch_size)
+        H = init_hidden(self.num_layers, batch_size,
+                        self.hidden_size, self.device)
 
         # Embed input
         embeded_input = self.char_embedder(X)
@@ -158,10 +161,6 @@ class Decoder(nn.Module):
 
         # Return logits and probs
         return all_logits, self.softmax(all_logits)
-
-    def __init_hidden(self, batch_size: int):
-        return (torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device),
-                torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device))
 
 
 class NeuralNet(nn.Module):
