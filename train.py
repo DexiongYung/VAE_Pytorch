@@ -8,7 +8,7 @@ import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='gauss_setup')
+                    help='Session name', type=str, default='no_selu_setup')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
 parser.add_argument('--batch_size', help='batch_size', type=int, default=128)
