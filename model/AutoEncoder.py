@@ -6,6 +6,7 @@ class AutoEncoder(nn.Module):
     def __init__(self, vocab: dict, sos_idx, pad_idx: int, device: str, args):
         super(AutoEncoder, self).__init__()
         self.sos_idx = sos_idx
+        self.pad_idx = pad_idx
         self.device = device
         self.encoder = Encoder(vocab, pad_idx, device, args)
         self.decoder = Decoder(vocab, pad_idx, device, args)
@@ -55,10 +56,10 @@ class Encoder(nn.Module):
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
 
     def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor):
-        std = torch.exp(0.5 * log_sigma)
+        sd = torch.exp(0.5 * log_sigma)
         # Molecular VAE multiplied std by sample from normal with SD 1 and mu 0
         eps = torch.distributions.Normal(0, 1).sample()
-        sample = mu + (eps * std)
+        sample = mu + (eps * sd)
 
         return sample
 
@@ -160,9 +161,9 @@ class NeuralNet(nn.Module):
         # Molecular VAE initializes linear layer using Xavier
         torch.nn.init.xavier_uniform_(self.ll.weight)
         # Trying out SELU, Molecular VAE doesn't use any activations
-        #self.selu = nn.SELU()
+        # self.selu = nn.SELU()
 
     def forward(self, X: torch.Tensor):
         X = self.ll(X)
         return X
-        #return self.selu(X)
+        # return self.selu(X)

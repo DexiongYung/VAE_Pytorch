@@ -35,29 +35,31 @@ args = parser.parse_args()
 DEVICE = "cpu"
 
 
-def fit(model, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor, ignore_idx: int):
+def fit(model, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.train()
     optimizer.zero_grad()
     probs, logits, mu, sigmas = model.forward(X, X_lengths)
-    loss = ELBO_loss(logits, Y, mu, sigmas, ignore_idx)
+    pad_idx = model.pad_idx
+    loss = ELBO_loss(logits, Y, mu, sigmas, pad_idx)
     loss.backward()
     optimizer.step
 
     return loss
 
 
-def test(model, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor, ignore_idx: int):
+def test(model, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.eval()
     with torch.no_grad():
         probs, logits, mu, sigmas = model.forward(X, X_lengths)
-        loss = ELBO_loss(logits, Y, mu, sigmas, ignore_idx)
+        pad_idx = model.pad_idx
+        loss = ELBO_loss(logits, Y, mu, sigmas, pad_idx)
 
     return loss
 
 
-def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor, ignore_idx: int):
+def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor, pad_idx: int):
     length = Y.shape[1]
-    criterion = torch.nn.CrossEntropyLoss(ignore_index=ignore_idx)
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=pad_idx)
     loss = 0
 
     for i in range(length):
@@ -66,6 +68,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
     KL_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
     return loss + KL_divergence
+
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
 names, c_to_n_vocab, n_to_c_vocab, sos_idx, pad_idx, eos_idx = load_data(
@@ -95,7 +98,7 @@ for epoch in range(args.num_epochs):
     train_loss = []
     test_loss = []
 
-    # Randomly sample train and test names
+    # TODO If model works replace with sampling from csv, this samples with replacement
     num_train_data = int(len(names)*0.75)
     train_names = names[0:num_train_data]
     test_names = names[num_train_data:-1]
@@ -105,7 +108,6 @@ for epoch in range(args.num_epochs):
     EOS = n_to_c_vocab[eos_idx]
 
     for iteration in range(len(train_names)//args.batch_size):
-        # Batch should be fixed to not do replacement
         train_names_input, train_names_output, train_lengths = create_batch(
             train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(train_names_input), size=args.batch_size)
