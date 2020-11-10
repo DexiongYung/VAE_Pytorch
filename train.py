@@ -39,7 +39,7 @@ DEVICE = "cpu"
 def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.train()
     optimizer.zero_grad()
-    probs, logits, mu, sigmas = model.forward(X, X_lengths)
+    logits, probs, mu, sigmas = model.forward(X, X_lengths)
     pad_idx = model.pad_idx
     loss = ELBO_loss(logits, Y, mu, sigmas, pad_idx)
     loss.backward()
@@ -51,7 +51,7 @@ def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor,
 def test(model: AutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.eval()
     with torch.no_grad():
-        probs, logits, mu, sigmas = model.forward(X, X_lengths)
+        logits, probs, mu, sigmas = model.forward(X, X_lengths)
         pad_idx = model.pad_idx
         loss = ELBO_loss(logits, Y, mu, sigmas, pad_idx)
 
