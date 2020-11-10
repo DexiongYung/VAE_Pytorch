@@ -12,18 +12,17 @@ class AutoEncoder(nn.Module):
         self.decoder = Decoder(vocab, pad_idx, device, args)
         self.to(device)
 
-    def forward(self, X: torch.Tensor, X_lengths: torch.Tensor):
-        max_len = X.shape[1]
-        Z, mu, sigmas = self.encoder.forward(X, X_lengths)
-        decoder_input = torch.LongTensor([self.sos_idx]).to(self.device)
-        logits, probs = self.decoder.forward(decoder_input, Z, max_len)
-        return logits, probs, mu, sigmas
+    def forward(self, X: torch.Tensor, X_lengths: torch.Tensor, max_len: int = None, is_teacher_force: bool = False):
+        if max_len is None:
+            max_len = X.shape[1]
 
-    def test(self, X: torch.Tensor, X_lengths: torch.Tensor, max_output_len: int):
         Z, mu, sigmas = self.encoder.forward(X, X_lengths)
-        decoder_input = torch.LongTensor([self.sos_idx]).to(self.device)
-        logits, probs = self.decoder.forward(decoder_input, Z, max_output_len)
-        return probs
+        if is_teacher_force:
+            logits, probs = self.decoder.forward(X, Z, is_teacher_force=True)
+        else:
+            decoder_input = torch.LongTensor([self.sos_idx]).to(self.device)
+            logits, probs = self.decoder.forward(decoder_input, Z, max_len)
+        return logits, probs, mu, sigmas
 
     def checkpoint(self, path: str):
         torch.save(self.state_dict(), path)
@@ -119,30 +118,59 @@ class Decoder(nn.Module):
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
 
-    def forward(self, input: torch.Tensor, Z: torch.Tensor, max_len: int, H=None):
+    def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, H=None, is_teacher_force: bool = False):
         batch_size = Z.shape[0]
 
         if H is None:
             H = self.__init_hidden(batch_size)
 
         # Embed input
-        embeded_input = self.char_embedder(input)
+        embeded_input = self.char_embedder(X)
+
+        if is_teacher_force:
+            max_len = X.shape[1]
+            input = torch.cat((Z.unsqueeze(1).repeat(
+                (1, max_len, 1)), embeded_input), dim=2)
+        else:
+            # All inputs should have Z appended to input
+            input = torch.cat((Z, embeded_input.repeat(
+                (batch_size, 1))), dim=1).unsqueeze(1)
 
         all_logits = None
-        # All inputs should have Z appended to input
-        input = torch.cat((Z, embeded_input.repeat(
-            (batch_size, 1))), dim=1).unsqueeze(1)
+        for i in range(max_len):
+            if is_teacher_force:
+                lstm_out, H = self.lstm(input[:, i, :].unsqueeze(1), H)
+                logits = self.fc1(lstm_out)
+            else:
+                lstm_out, H = self.lstm(input, H)
+                logits = self.fc1(lstm_out)
+                max_chars = torch.argmax(logits, dim=2).squeeze(1)
+                embeded_input = self.char_embedder(max_chars)
+                input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
+
+            # Save logits for back prop
+            if i == 0:
+                all_logits = logits
+            else:
+                all_logits = torch.cat((all_logits, logits), dim=1)
+
+        # Return logits and probs
+        return all_logits, self.softmax(all_logits)
+
+    def teacher_force_forward(self, X: torch.Tensor, Z: torch.Tensor, H=None):
+        batch_size = Z.shape[0]
+        max_len = X.shape[1]
+
+        if H is None:
+            H = self.__init_hidden(batch_size)
+
+        # Embed input
+
+        all_logits = None
 
         for i in range(max_len):
-            lstm_out, H = self.lstm(input, H)
+            lstm_out, H = self.lstm(embeded_input[:, i, :], H)
             logits = self.fc1(lstm_out)
-            # Softmax the vocab dimension
-            probs = self.softmax(logits)
-
-            # Sample argmax char and generate next input
-            sampled_chars = torch.argmax(probs, dim=2).squeeze(1)
-            embeded_input = self.char_embedder(sampled_chars)
-            input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
 
             # Save logits for back prop
             if i == 0:
