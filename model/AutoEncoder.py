@@ -66,12 +66,9 @@ class Encoder(nn.Module):
 
         return sample
 
-    def forward(self, X: torch.Tensor, X_lengths: torch.Tensor, H=None):
+    def forward(self, X: torch.Tensor, X_lengths: torch.Tensor):
         batch_size = X.shape[0]
-
-        if H is None:
-            H = self.__init_hidden(batch_size)
-
+        H = self.__init_hidden(batch_size)
         X_embed = self.char_embedder(X)
         # Pack padded sequence
         X_pps = torch.nn.utils.rnn.pack_padded_sequence(
@@ -119,12 +116,10 @@ class Decoder(nn.Module):
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
 
-    def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, H=None, X_lengths: torch.Tensor = None):
+    def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, X_lengths: torch.Tensor = None):
         batch_size = Z.shape[0]
         is_teacher_force = X_lengths is not None
-
-        if H is None:
-            H = self.__init_hidden(batch_size)
+        H = self.__init_hidden(batch_size)
 
         # Embed input
         embeded_input = self.char_embedder(X)
