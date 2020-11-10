@@ -164,30 +164,6 @@ class Decoder(nn.Module):
         # Return logits and probs
         return all_logits, self.softmax(all_logits)
 
-    def teacher_force_forward(self, X: torch.Tensor, Z: torch.Tensor, H=None):
-        batch_size = Z.shape[0]
-        max_len = X.shape[1]
-
-        if H is None:
-            H = self.__init_hidden(batch_size)
-
-        # Embed input
-
-        all_logits = None
-
-        for i in range(max_len):
-            lstm_out, H = self.lstm(embeded_input[:, i, :], H)
-            logits = self.fc1(lstm_out)
-
-            # Save logits for back prop
-            if i == 0:
-                all_logits = logits
-            else:
-                all_logits = torch.cat((all_logits, logits), dim=1)
-
-        # Return logits and probs
-        return all_logits, self.softmax(all_logits)
-
     def __init_hidden(self, batch_size: int):
         return (torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device),
                 torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device))
