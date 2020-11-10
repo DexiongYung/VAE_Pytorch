@@ -46,22 +46,3 @@ def create_batch(all_names: list, batch_size: int, vocab: dict, SOS: str, PAD: s
                              for s in names_output])
 
     return names_input, names_output, names_length
-
-
-def noise_name(name: str, allowed_chars: str):
-    len_allowed = len(allowed_chars)
-    ret = ''
-    for c in name:
-        action = np.random.choice(4)
-
-        if action == 0:
-            ret += c
-        elif action == 1:
-            ret += c
-            add_idx = np.random.choice(len_allowed)
-            ret += allowed_chars[add_idx]
-        elif action == 2:
-            sub_idx = np.random.choice(len_allowed)
-            ret += allowed_chars[sub_idx]
-
-    return ret
