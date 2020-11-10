@@ -10,10 +10,10 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='no_selu_setup')
+                    help='Session name', type=str, default='teacher_force')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=200)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=10)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
@@ -121,9 +121,9 @@ for epoch in range(args.num_epochs):
         train_names_input, train_names_output, train_lengths = create_batch(
             train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(train_names_input), size=args.batch_size)
-        x = torch.LongTensor([train_names_input[i] for i in n]).to(DEVICE)
-        y = torch.LongTensor([train_names_output[i] for i in n]).to(DEVICE)
-        l = torch.LongTensor([train_lengths[i] for i in n]).to(DEVICE)
+        x = torch.LongTensor(train_names_input).to(DEVICE)
+        y = torch.LongTensor(train_names_output).to(DEVICE)
+        l = torch.LongTensor(train_lengths).to(DEVICE)
 
         cost = fit(model, optimizer, x, l, y)
 
@@ -139,9 +139,9 @@ for epoch in range(args.num_epochs):
         test_names_input, test_names_output, test_lengths = create_batch(
             train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(test_names_input), size=args.batch_size)
-        x = torch.LongTensor([test_names_input[i] for i in n]).to(DEVICE)
-        y = torch.LongTensor([test_names_output[i] for i in n]).to(DEVICE)
-        l = torch.LongTensor([test_lengths[i] for i in n]).to(DEVICE)
+        x = torch.LongTensor(test_names_input).to(DEVICE)
+        y = torch.LongTensor(test_names_output).to(DEVICE)
+        l = torch.LongTensor(test_lengths).to(DEVICE)
 
         cost = test(model, x, l, y)
 
