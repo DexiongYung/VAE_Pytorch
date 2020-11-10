@@ -1,5 +1,5 @@
 from model.AutoEncoder import AutoEncoder
-from utilities import load_data, plot_losses
+from utilities import *
 import torch.optim as optim
 import numpy as np
 import argparse
@@ -8,10 +8,10 @@ import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='new_setup')
+                    help='Session name', type=str, default='fixed_setup')
 parser.add_argument('--max_name_length',
-                    help='Max name generation length', type=int, default=20)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=200)
+                    help='Max name generation length', type=int, default=40)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=128)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
@@ -35,29 +35,29 @@ args = parser.parse_args()
 DEVICE = "cpu"
 
 
-def fit(model, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
+def fit(model, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor, ignore_idx: int):
     model.train()
     optimizer.zero_grad()
-    probs, mu, sigmas = model.forward(X, X_lengths)
-    loss = ELBO_loss(probs, Y, mu, sigmas)
+    probs, logits, mu, sigmas = model.forward(X, X_lengths)
+    loss = ELBO_loss(logits, Y, mu, sigmas, ignore_idx)
     loss.backward()
     optimizer.step
 
     return loss
 
 
-def test(model, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
+def test(model, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor, ignore_idx: int):
     model.eval()
     with torch.no_grad():
-        probs, mu, sigmas = model.forward(X, X_lengths)
-        loss = ELBO_loss(probs, Y, mu, sigmas)
+        probs, logits, mu, sigmas = model.forward(X, X_lengths)
+        loss = ELBO_loss(logits, Y, mu, sigmas, ignore_idx)
 
     return loss
 
 
-def ELBO_loss(Y_hat, Y, mu, logvar):
+def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor, ignore_idx: int):
     length = Y.shape[1]
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=ignore_idx)
     loss = 0
 
     for i in range(length):
@@ -68,6 +68,9 @@ def ELBO_loss(Y_hat, Y, mu, logvar):
     return loss + KL_divergence
 
 
+names, c_to_n_vocab, n_to_c_vocab, sos_idx, pad_idx, eos_idx = load_data(
+    args.name_file)
+
 if args.continue_train:
     json_file = json.load(open(f'json/{args.name}.json', 'r'))
     t_args = argparse.Namespace()
@@ -75,12 +78,14 @@ if args.continue_train:
     args = parser.parse_args(namespace=t_args)
     model.load(f'weight/{args.name}')
 else:
+    args.vocab = c_to_n_vocab
+    args.sos_idx = sos_idx
+    args.pad_idx = pad_idx
+    args.eos_idx = eos_idx
     with open(f'json/{args.name}.json', 'wt') as f:
         json.dump(vars(args), f)
 
-names_input, names_output, vocab, names_length, pad_idx = load_data(
-    args.name_file)
-model = AutoEncoder(vocab, pad_idx, args.max_name_length, DEVICE, args)
+model = AutoEncoder(c_to_n_vocab, sos_idx, pad_idx, DEVICE, args)
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 total_train_loss = []
@@ -90,23 +95,23 @@ for epoch in range(args.num_epochs):
     train_loss = []
     test_loss = []
 
-    num_train_data = int(len(names_input)*0.75)
-    train_names_input = names_input[0:num_train_data]
-    test_names_input = names_input[num_train_data:-1]
+    num_train_data = int(len(names)*0.75)
+    train_names = names[0:num_train_data]
+    test_names = names[num_train_data:-1]
 
-    train_names_output = names_output[0:num_train_data]
-    test_names_output = names_output[num_train_data:-1]
+    SOS = n_to_c_vocab[sos_idx]
+    PAD = n_to_c_vocab[pad_idx]
+    EOS = n_to_c_vocab[eos_idx]
 
-    train_lengths = names_length[0:num_train_data]
-    test_lengths = names_length[num_train_data:-1]
-
-    for iteration in range(len(train_names_input)//args.batch_size):
+    for iteration in range(len(train_names)//args.batch_size):
+        train_names_input, train_names_output, train_lengths = create_batch(
+            train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(train_names_input), size=args.batch_size)
         x = torch.LongTensor([train_names_input[i] for i in n]).to(DEVICE)
         y = torch.LongTensor([train_names_output[i] for i in n]).to(DEVICE)
         l = torch.LongTensor([train_lengths[i] for i in n]).to(DEVICE)
 
-        cost = fit(model, optimizer, x, l, y)
+        cost = fit(model, optimizer, x, l, y, pad_idx)
 
         train_loss.append(cost.item())
 
@@ -116,13 +121,15 @@ for epoch in range(args.num_epochs):
             plot_losses(total_train_loss, filename=f'{args.name}_train.png')
             train_loss = []
 
-    for iteration in range(len(test_names_input)//args.batch_size):
+    for iteration in range(len(test_names)//args.batch_size):
+        test_names_input, test_names_output, test_lengths = create_batch(
+            train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(test_names_input), size=args.batch_size)
         x = torch.LongTensor([test_names_input[i] for i in n]).to(DEVICE)
         y = torch.LongTensor([test_names_output[i] for i in n]).to(DEVICE)
         l = torch.LongTensor([test_lengths[i] for i in n]).to(DEVICE)
 
-        cost = test(model, x, l, y)
+        cost = test(model, x, l, y, pad_idx)
 
         test_loss.append(cost.item())
 

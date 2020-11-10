@@ -3,26 +3,31 @@ import torch.nn as nn
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, vocab: dict, pad_idx: int, max_length: int, device: str, args):
+    def __init__(self, vocab: dict, sos_idx, pad_idx: int, device: str, args):
         super(AutoEncoder, self).__init__()
+        self.sos_idx = sos_idx
+        self.device = device
         self.encoder = Encoder(vocab, pad_idx, device, args)
         self.decoder = Decoder(vocab, pad_idx, device, args)
         self.to(device)
 
     def forward(self, X: torch.Tensor, X_lengths: torch.Tensor):
+        max_len = X.shape[1]
         Z, mu, sigmas = self.encoder.forward(X, X_lengths)
-        probs = self.decoder.forward(Z, X)
-        return probs, mu, sigmas
+        decoder_input = torch.LongTensor([self.sos_idx]).to(self.device)
+        logits, probs = self.decoder.forward(decoder_input, Z, max_len)
+        return logits, probs, mu, sigmas
 
-    def test(self, X: torch.Tensor, X_lengths: torch.Tensor):
+    def test(self, X: torch.Tensor, X_lengths: torch.Tensor, max_output_len: int):
         Z, mu, sigmas = self.encoder.forward(X, X_lengths)
-        probs = self.decoder.test(Z, X)
+        decoder_input = torch.LongTensor([self.sos_idx]).to(self.device)
+        logits, probs = self.decoder.forward(decoder_input, Z, max_output_len)
         return probs
 
     def checkpoint(self, path: str):
         torch.save(self.state_dict(), path)
-    
-    def load(self, path:str):
+
+    def load(self, path: str):
         self.load_state_dict(torch.load(path))
 
 
@@ -92,58 +97,41 @@ class Decoder(nn.Module):
 
         self.word_embedding = nn.Embedding(
             num_embeddings=self.vocab_size,
-            embedding_dim=args.word_embed_dim,
+            embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
-        torch.nn.init.uniform_(self.word_embedding.weight)
-        self.lstm_input = self.word_embed_dim + self.latent_size
-        self.lstm = nn.LSTM(self.lstm_input, self.hidden_size,
+
+        self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
                             self.num_layers, batch_first=True)
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
 
-    def forward(self, Z: torch.Tensor, X: torch.Tensor, H=None):
-        batch_size = X.shape[0]
-        sequence_length = X.shape[1]
+    def forward(self, input: torch.Tensor, Z: torch.Tensor, max_len: int, H=None):
+        batch_size = Z.shape[0]
 
         if H is None:
             H = self.__init_hidden(batch_size)
 
-        X_embed = self.word_embedding(X)
+        embeded_input = self.word_embedding(input)
 
-        probs = None
+        logits = None
+        input = torch.cat((Z, embeded_input.repeat(
+            (batch_size, 1))), dim=1).unsqueeze(1)
 
-        for i in range(sequence_length):
-            input = torch.cat((X_embed[:, i, :], Z), dim=1).unsqueeze(1)
-            lstm_out, H = self.lstm(input, H)
-            fc1_out = self.fc1(lstm_out)
-
-            if i == 0:
-                probs = self.softmax(fc1_out)
-            else:
-                probs = torch.cat((probs, self.softmax(fc1_out)), dim=1)
-
-        return probs
-
-    def test(self, Z: torch.Tensor, X: torch.Tensor, max_length: int, H=None):
-        batch_size = X.shape[0]
-        sequence_length = X.shape[1]
-
-        if H is None:
-            H = self.__init_hidden(batch_size)
-
-        X_embed = self.word_embedding(X)
-
-        probs = None
-
-        for i in range(max_length):
-            input = torch.cat((X_embed[:, i, :], Z), dim=1).unsqueeze(1)
+        for i in range(max_len):
             lstm_out, H = self.lstm(input, H)
             fc1_out = self.fc1(lstm_out)
             probs = self.softmax(fc1_out)
-            torch.argmax(probs, dim=2)
+            sampled_chars = torch.argmax(probs, dim=2).squeeze(1)
+            embeded_input = self.word_embedding(sampled_chars)
+            input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
 
-        return probs
+            if i == 0:
+                logits = fc1_out
+            else:
+                logits = torch.cat((logits, fc1_out), dim=1)
+
+        return logits, self.softmax(logits)
 
     def __init_hidden(self, batch_size: int):
         return (torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device),
