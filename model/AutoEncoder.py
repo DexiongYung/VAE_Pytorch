@@ -43,13 +43,13 @@ class Encoder(nn.Module):
         # MLPs should take the hidden state size, which is num_layers * hidden_size
         self.mlp_input_size = self.num_layers * self.hidden_size
         self.device = device
-        self.word_embedding = nn.Embedding(
+        self.char_embedder = nn.Embedding(
             num_embeddings=self.vocab_size,
             embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
         # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
-        torch.nn.init.uniform_(self.word_embedding.weight,  -0.1, 0.1)
+        torch.nn.init.uniform_(self.char_embedder.weight,  -0.1, 0.1)
         self.lstm = nn.LSTM(self.word_embed_dim,
                             self.hidden_size, self.num_layers, batch_first=True)
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
@@ -73,7 +73,7 @@ class Encoder(nn.Module):
         if H is None:
             H = self.__init_hidden(batch_size)
 
-        X_embed = self.word_embedding(X)
+        X_embed = self.char_embedder(X)
         # Pack padded sequence
         X_pps = torch.nn.utils.rnn.pack_padded_sequence(
             X_embed, X_lengths, enforce_sorted=False, batch_first=True)
@@ -107,13 +107,13 @@ class Decoder(nn.Module):
         self.word_embed_dim = args.word_embed_dim
         self.latent_size = args.latent_size
         self.device = device
-        self.word_embedding = nn.Embedding(
+        self.char_embedder = nn.Embedding(
             num_embeddings=self.vocab_size,
             embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
         # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
-        torch.nn.init.uniform_(self.word_embedding.weight, -0.1, 0.1)
+        torch.nn.init.uniform_(self.char_embedder.weight, -0.1, 0.1)
         self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
                             self.num_layers, batch_first=True)
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
@@ -126,7 +126,7 @@ class Decoder(nn.Module):
             H = self.__init_hidden(batch_size)
 
         # Embed input
-        embeded_input = self.word_embedding(input)
+        embeded_input = self.char_embedder(input)
 
         all_logits = None
         # All inputs should have Z appended to input
@@ -141,7 +141,7 @@ class Decoder(nn.Module):
 
             # Sample argmax char and generate next input
             sampled_chars = torch.argmax(probs, dim=2).squeeze(1)
-            embeded_input = self.word_embedding(sampled_chars)
+            embeded_input = self.char_embedder(sampled_chars)
             input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
 
             # Save logits for back prop
