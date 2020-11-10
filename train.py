@@ -35,7 +35,7 @@ args = parser.parse_args()
 DEVICE = "cpu"
 
 
-def fit(model, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
+def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.train()
     optimizer.zero_grad()
     probs, logits, mu, sigmas = model.forward(X, X_lengths)
@@ -47,7 +47,7 @@ def fit(model, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Ten
     return loss
 
 
-def test(model, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
+def test(model: AutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.eval()
     with torch.no_grad():
         probs, logits, mu, sigmas = model.forward(X, X_lengths)
