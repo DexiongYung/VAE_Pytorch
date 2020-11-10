@@ -115,7 +115,7 @@ for epoch in range(args.num_epochs):
         y = torch.LongTensor([train_names_output[i] for i in n]).to(DEVICE)
         l = torch.LongTensor([train_lengths[i] for i in n]).to(DEVICE)
 
-        cost = fit(model, optimizer, x, l, y, pad_idx)
+        cost = fit(model, optimizer, x, l, y)
 
         train_loss.append(cost.item())
 
@@ -133,7 +133,7 @@ for epoch in range(args.num_epochs):
         y = torch.LongTensor([test_names_output[i] for i in n]).to(DEVICE)
         l = torch.LongTensor([test_lengths[i] for i in n]).to(DEVICE)
 
-        cost = test(model, x, l, y, pad_idx)
+        cost = test(model, x, l, y)
 
         test_loss.append(cost.item())
 
