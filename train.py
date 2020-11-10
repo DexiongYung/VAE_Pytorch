@@ -139,5 +139,5 @@ for epoch in range(args.num_epochs):
 
         if iteration % args.save_every == 0:
             total_test_loss.append(np.mean(test_loss))
-            plot_losses(total_test_loss, filename='test.png')
+            plot_losses(total_test_loss, filename=f'{args.name}_test.png')
             test_loss = []
