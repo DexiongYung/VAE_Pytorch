@@ -119,8 +119,8 @@ class Decoder(nn.Module):
         self.softmax = torch.nn.Softmax(dim=2)
 
     def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, X_lengths: torch.Tensor = None):
-        batch_size = Z.shape[0]
         is_teacher_force = X_lengths is not None
+        batch_size = Z.shape[0]
         H = init_hidden(self.num_layers, batch_size,
                         self.hidden_size, self.device)
 
@@ -136,6 +136,7 @@ class Decoder(nn.Module):
             out_ps, H = self.lstm(X_ps, H)
             lstm_outs, _ = torch.nn.utils.rnn.pad_packed_sequence(
                 out_ps, batch_first=True, padding_value=self.pad_idx)
+            # Reshape because LL is (batch, features)
             lstm_outs = lstm_outs.reshape((batch_size * max_len, -1))
             fc1_outs = self.fc1(lstm_outs)
             # Remove last, becuase last value of X is EOS, don't care about that output
