@@ -8,7 +8,7 @@ import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='fixed_setup')
+                    help='Session name', type=str, default='gauss_setup')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
 parser.add_argument('--batch_size', help='batch_size', type=int, default=128)
@@ -67,7 +67,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
 
     return loss + KL_divergence
 
-
+# Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
 names, c_to_n_vocab, n_to_c_vocab, sos_idx, pad_idx, eos_idx = load_data(
     args.name_file)
 
@@ -95,6 +95,7 @@ for epoch in range(args.num_epochs):
     train_loss = []
     test_loss = []
 
+    # Randomly sample train and test names
     num_train_data = int(len(names)*0.75)
     train_names = names[0:num_train_data]
     test_names = names[num_train_data:-1]
@@ -104,6 +105,7 @@ for epoch in range(args.num_epochs):
     EOS = n_to_c_vocab[eos_idx]
 
     for iteration in range(len(train_names)//args.batch_size):
+        # Batch should be fixed to not do replacement
         train_names_input, train_names_output, train_lengths = create_batch(
             train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(train_names_input), size=args.batch_size)

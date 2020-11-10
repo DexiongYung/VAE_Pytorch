@@ -34,19 +34,21 @@ class AutoEncoder(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, vocab: dict, pad_idx: int, device: str, args):
         super(Encoder, self).__init__()
-        self.input_size = len(vocab)
+        self.vocab_size = len(vocab)
         self.hidden_size = args.RNN_hidden_size
         self.num_layers = args.num_layers
         self.word_embed_dim = args.word_embed_dim
         self.latent_size = args.latent_size
+        # MLPs should take the hidden state size, which is num_layers * hidden_size
         self.mlp_input_size = self.num_layers * self.hidden_size
         self.device = device
         self.word_embedding = nn.Embedding(
-            num_embeddings=self.input_size,
+            num_embeddings=self.vocab_size,
             embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
-        torch.nn.init.uniform_(self.word_embedding.weight)
+        # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
+        torch.nn.init.uniform_(self.word_embedding.weight,  -0.1, 0.1)
         self.lstm = nn.LSTM(self.word_embed_dim,
                             self.hidden_size, self.num_layers, batch_first=True)
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
@@ -54,7 +56,8 @@ class Encoder(nn.Module):
 
     def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor):
         std = torch.exp(0.5 * log_sigma)
-        eps = torch.randn_like(std)
+        # Molecular VAE multiplied std by sample from normal with SD 1 and mu 0
+        eps = torch.distributions.Normal(0, 1).sample()
         sample = mu + (eps * std)
 
         return sample
@@ -66,15 +69,21 @@ class Encoder(nn.Module):
             H = self.__init_hidden(batch_size)
 
         X_embed = self.word_embedding(X)
+        # Pack padded sequence
         X_pps = torch.nn.utils.rnn.pack_padded_sequence(
             X_embed, X_lengths, enforce_sorted=False, batch_first=True)
 
+        # Forward through X_pps to get hidden and cell states
         _, HC = self.lstm(X_pps, H)
 
+        # Linear layers require batch first, batch in dim=1 in hidden states, then flatten num layers and hidden state dims together
         H = torch.flatten(HC[0].transpose(0, 1), 1, 2)
+
+        # Get mu and sigma
         mu = self.mu_mlp(H)
         sigmas = self.sigma_mlp(H)
 
+        # Use reparam trick to sample latents
         z = self.reparam_trick(mu, sigmas)
 
         return z, mu, sigmas
@@ -98,7 +107,8 @@ class Decoder(nn.Module):
             embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
-        torch.nn.init.uniform_(self.word_embedding.weight)
+        # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
+        torch.nn.init.uniform_(self.word_embedding.weight, -0.1, 0.1)
         self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
                             self.num_layers, batch_first=True)
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
@@ -110,25 +120,32 @@ class Decoder(nn.Module):
         if H is None:
             H = self.__init_hidden(batch_size)
 
+        # Embed input
         embeded_input = self.word_embedding(input)
 
         all_logits = None
+        # All inputs should have Z appended to input
         input = torch.cat((Z, embeded_input.repeat(
             (batch_size, 1))), dim=1).unsqueeze(1)
 
         for i in range(max_len):
             lstm_out, H = self.lstm(input, H)
             logits = self.fc1(lstm_out)
+            # Softmax the vocab dimension
             probs = self.softmax(logits)
+
+            # Sample argmax char and generate next input
             sampled_chars = torch.argmax(probs, dim=2).squeeze(1)
             embeded_input = self.word_embedding(sampled_chars)
             input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
 
+            # Save logits for back prop
             if i == 0:
                 all_logits = logits
             else:
                 all_logits = torch.cat((all_logits, logits), dim=1)
 
+        # Return logits and probs
         return all_logits, self.softmax(all_logits)
 
     def __init_hidden(self, batch_size: int):
