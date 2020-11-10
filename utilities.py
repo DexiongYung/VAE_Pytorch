@@ -3,10 +3,15 @@ import pandas as pd
 import collections
 import string
 import matplotlib.pyplot as plt
+import os
 from random import randrange
+from os import path
 
 
 def plot_losses(losses, folder: str = "plot", filename: str = "checkpoint.png"):
+    if not path.exists(folder):
+        os.mkdir(folder)
+
     x = list(range(len(losses)))
     plt.plot(x, losses, 'b--', label="Unsupervised Loss")
     plt.title("Loss Progression")

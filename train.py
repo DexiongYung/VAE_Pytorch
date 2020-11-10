@@ -1,10 +1,12 @@
 from model.AutoEncoder import AutoEncoder
 from utilities import *
+from os import path
 import torch.optim as optim
 import numpy as np
 import argparse
 import torch
 import json
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
@@ -23,7 +25,6 @@ parser.add_argument('--num_epochs', help='epochs', type=int, default=10000)
 parser.add_argument('--lr', help='learning rate', type=float, default=0.0001)
 parser.add_argument('--name_file', help='CSVs of names for training and testing',
                     type=str, default='data/first.csv')
-parser.add_argument('--plot_dir', help='save dir', type=str, default='plot/')
 parser.add_argument('--weight_dir', help='save dir',
                     type=str, default='weight/')
 parser.add_argument('--save_every',
@@ -79,12 +80,20 @@ if args.continue_train:
     t_args = argparse.Namespace()
     t_args.__dict__.update(json_file)
     args = parser.parse_args(namespace=t_args)
-    model.load(f'weight/{args.name}')
+
+    if not path.exists(args.weight_dir):
+        os.mkdir(args.weight_dir)
+
+    model.load(f'{args.weight_dir}/{args.name}')
 else:
     args.vocab = c_to_n_vocab
     args.sos_idx = sos_idx
     args.pad_idx = pad_idx
     args.eos_idx = eos_idx
+
+    if not path.exists('json'):
+        os.mkdir('json')
+
     with open(f'json/{args.name}.json', 'w') as f:
         json.dump(vars(args), f)
 
