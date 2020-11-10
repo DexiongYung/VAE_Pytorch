@@ -41,7 +41,6 @@ class Encoder(nn.Module):
         self.latent_size = args.latent_size
         self.mlp_input_size = self.num_layers * self.hidden_size
         self.device = device
-
         self.word_embedding = nn.Embedding(
             num_embeddings=self.input_size,
             embedding_dim=self.word_embed_dim,
@@ -53,7 +52,7 @@ class Encoder(nn.Module):
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
 
-    def reparameterize_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor):
+    def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor):
         std = torch.exp(0.5 * log_sigma)
         eps = torch.randn_like(std)
         sample = mu + (eps * std)
@@ -70,13 +69,13 @@ class Encoder(nn.Module):
         X_pps = torch.nn.utils.rnn.pack_padded_sequence(
             X_embed, X_lengths, enforce_sorted=False, batch_first=True)
 
-        _, H = self.lstm(X_pps, H)
+        _, HC = self.lstm(X_pps, H)
 
-        H0 = torch.flatten(H[0].transpose(0, 1), 1, 2)
-        mu = self.mu_mlp(H0)
-        sigmas = self.sigma_mlp(H0)
+        H = torch.flatten(HC[0].transpose(0, 1), 1, 2)
+        mu = self.mu_mlp(H)
+        sigmas = self.sigma_mlp(H)
 
-        z = self.reparameterize_trick(mu, sigmas)
+        z = self.reparam_trick(mu, sigmas)
 
         return z, mu, sigmas
 
@@ -94,13 +93,12 @@ class Decoder(nn.Module):
         self.word_embed_dim = args.word_embed_dim
         self.latent_size = args.latent_size
         self.device = device
-
         self.word_embedding = nn.Embedding(
             num_embeddings=self.vocab_size,
             embedding_dim=self.word_embed_dim,
             padding_idx=pad_idx
         )
-
+        torch.nn.init.uniform_(self.word_embedding.weight)
         self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
                             self.num_layers, batch_first=True)
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
@@ -120,16 +118,16 @@ class Decoder(nn.Module):
 
         for i in range(max_len):
             lstm_out, H = self.lstm(input, H)
-            fc1_out = self.fc1(lstm_out)
-            probs = self.softmax(fc1_out)
+            logits = self.fc1(lstm_out)
+            probs = self.softmax(logits)
             sampled_chars = torch.argmax(probs, dim=2).squeeze(1)
             embeded_input = self.word_embedding(sampled_chars)
             input = torch.cat((Z, embeded_input), dim=1).unsqueeze(1)
 
             if i == 0:
-                logits = fc1_out
+                logits = logits
             else:
-                logits = torch.cat((logits, fc1_out), dim=1)
+                logits = torch.cat((logits, logits), dim=1)
 
         return logits, self.softmax(logits)
 
