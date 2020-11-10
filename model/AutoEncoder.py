@@ -59,7 +59,7 @@ class Encoder(nn.Module):
         batch_size = mu.shape[0]
         latent_size = mu.shape[1]
         sd = torch.exp(0.5 * log_sigma)
-        # Molecular VAE multiplied std by sample from normal with SD 1 and mu 0
+        # Molecular VAE multiplied std by sample from normal with SD 1 and mu 0 and samples unique value for each latent index
         mu_tensor = torch.zeros((batch_size, latent_size)) + m
         sd_tensor = torch.zeros((batch_size, latent_size)) + d
         eps = torch.distributions.Normal(mu_tensor, sd_tensor).sample()
