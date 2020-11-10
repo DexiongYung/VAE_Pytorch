@@ -138,7 +138,8 @@ class Decoder(nn.Module):
                 out_ps, batch_first=True, padding_value=self.pad_idx)
             lstm_outs = lstm_outs.reshape((batch_size * max_len, -1))
             fc1_outs = self.fc1(lstm_outs)
-            all_logits = fc1_outs.reshape((batch_size, max_len, -1))
+            # Remove first since pps appends first input into front of pps
+            all_logits = fc1_outs.reshape((batch_size, max_len, -1))[:, :-1, :]
         else:
             all_logits = None
 
