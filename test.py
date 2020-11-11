@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--name',
                     help='Name to test', type=str, default='Dylan')
 parser.add_argument('--model_name',
-                    help='JSON config and weight name', type=str, default='new_setup')
+                    help='JSON config and weight name', type=str, default='no_selu_setup')
 args = parser.parse_args()
 
 NAME = args.name
@@ -35,5 +35,12 @@ length_tensor = torch.LongTensor([len(NAME)])
 input_tensor = torch.LongTensor(
     list(map(VOCAB.get, INVERTED_VOCAB[SOS_IDX] + NAME))).unsqueeze(0)
 
-probs_tensor = model.test(input_tensor, length_tensor, 5)
-print('blah')
+_, probs_tensor, _, _ = model.forward(
+    input_tensor, length_tensor, is_teacher_force=True)
+arg_max = torch.argmax(probs_tensor, dim=2)
+arg_max_list = arg_max.tolist()
+output = [list(map(INVERTED_VOCAB.get, arg_max_list[i]))
+          for i in range(len(arg_max_list))]
+
+for name in output:
+    print(''.join(name))
