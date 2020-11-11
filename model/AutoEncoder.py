@@ -139,7 +139,6 @@ class Decoder(nn.Module):
             # Reshape because LL is (batch, features)
             lstm_outs = lstm_outs.reshape((batch_size * max_len, -1))
             fc1_outs = self.fc1(lstm_outs)
-            # Remove last, becuase last value of X is EOS, don't care about that output
             all_logits = fc1_outs.reshape((batch_size, max_len, -1))
         else:
             all_logits = None

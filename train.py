@@ -10,15 +10,15 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='teacher_force')
+                    help='Session name', type=str, default='200_word_embed')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=10)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=1)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
 parser.add_argument('--word_embed_dim',
-                    help='Word embedding size', type=int, default=16)
+                    help='Word embedding size', type=int, default=200)
 parser.add_argument(
     '--num_layers', help='number of rnn layer', type=int, default=3)
 parser.add_argument('--num_epochs', help='epochs', type=int, default=10000)
