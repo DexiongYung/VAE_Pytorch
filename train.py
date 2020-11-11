@@ -23,6 +23,8 @@ parser.add_argument(
     '--num_layers', help='number of rnn layer', type=int, default=3)
 parser.add_argument('--num_epochs', help='epochs', type=int, default=10000)
 parser.add_argument('--lr', help='learning rate', type=float, default=0.0001)
+parser.add_argument(
+    '--percent_train', help='Percent of the data used for training', type=float, default=0.75)
 parser.add_argument('--name_file', help='CSVs of names for training and testing',
                     type=str, default='data/first.csv')
 parser.add_argument('--weight_dir', help='save dir',
@@ -73,7 +75,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
 
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
-names, c_to_n_vocab, n_to_c_vocab, sos_idx, pad_idx, eos_idx = load_data(
+names, name_probs, c_to_n_vocab, n_to_c_vocab, sos_idx, pad_idx, eos_idx = load_data(
     args.name_file)
 
 if args.continue_train:
@@ -108,18 +110,16 @@ for epoch in range(args.num_epochs):
     train_loss = []
     test_loss = []
 
-    # TODO If model works replace with sampling from csv, this samples with replacement
-    num_train_data = int(len(names)*0.75)
-    train_names = names[0:num_train_data]
-    test_names = names[num_train_data:-1]
+    num_train_data = int(len(names)*args.percent_train)
+    num_test_data = len(names) - num_train_data
 
     SOS = n_to_c_vocab[sos_idx]
     PAD = n_to_c_vocab[pad_idx]
     EOS = n_to_c_vocab[eos_idx]
 
-    for iteration in range(len(train_names)//args.batch_size):
+    for iteration in range(num_train_data//args.batch_size):
         train_names_input, train_names_output, train_lengths = create_batch(
-            train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
+            names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(train_names_input), size=args.batch_size)
         x = torch.LongTensor(train_names_input).to(DEVICE)
         y = torch.LongTensor(train_names_output).to(DEVICE)
@@ -135,9 +135,9 @@ for epoch in range(args.num_epochs):
             plot_losses(total_train_loss, filename=f'{args.name}_train.png')
             train_loss = []
 
-    for iteration in range(len(test_names)//args.batch_size):
+    for iteration in range(num_test_data//args.batch_size):
         test_names_input, test_names_output, test_lengths = create_batch(
-            train_names, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
+            names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         n = np.random.randint(len(test_names_input), size=args.batch_size)
         x = torch.LongTensor(test_names_input).to(DEVICE)
         y = torch.LongTensor(test_names_output).to(DEVICE)
