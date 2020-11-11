@@ -10,13 +10,13 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='200_word_embed')
+                    help='Session name', type=str, default='large_params')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
 parser.add_argument('--batch_size', help='batch_size', type=int, default=1)
-parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
+parser.add_argument('--latent_size', help='latent_size', type=int, default=400)
 parser.add_argument('--RNN_hidden_size',
-                    help='unit_size of rnn cell', type=int, default=512)
+                    help='unit_size of rnn cell', type=int, default=700)
 parser.add_argument('--word_embed_dim',
                     help='Word embedding size', type=int, default=200)
 parser.add_argument(
