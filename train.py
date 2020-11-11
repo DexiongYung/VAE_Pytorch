@@ -81,15 +81,14 @@ if args.continue_train:
     t_args = argparse.Namespace()
     t_args.__dict__.update(json_file)
     args = parser.parse_args(namespace=t_args)
-
-    if not path.exists(args.weight_dir):
-        os.mkdir(args.weight_dir)
-
     model.load(f'{args.weight_dir}/{args.name}')
 else:
     args.vocab = c_to_n_vocab
     args.sos_idx = sos_idx
     args.eos_idx = eos_idx
+
+    if not path.exists(args.weight_dir):
+        os.mkdir(args.weight_dir)
 
     if not path.exists('json'):
         os.mkdir('json')
@@ -126,7 +125,7 @@ for epoch in range(args.num_epochs):
         train_loss.append(cost.item())
 
         if iteration % args.save_every == 0:
-            model.checkpoint(f'weight/{args.name}.path.tar')
+            model.checkpoint(f'{args.weight_dir}/{args.name}.path.tar')
             total_train_loss.append(np.mean(train_loss))
             plot_losses(total_train_loss, filename=f'{args.name}_train.png')
             train_loss = []
