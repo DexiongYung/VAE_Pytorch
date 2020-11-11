@@ -47,12 +47,10 @@ def create_batch(all_names: list, probs_list: list, batch_size: int, vocab: dict
     seq_length = len(max(names, key=len)) + 1
 
     # Names length should be length of the name + SOS xor EOS
-    names_length = np.array([len(n)+1 for n in names])
+    names_length = [len(n)+1 for n in names]
     names_input = [(SOS+s).ljust(seq_length, PAD) for s in names]
-    names_input = np.array([np.array(list(map(vocab.get, s)))
-                            for s in names_input])
+    names_input = [list(map(vocab.get, s)) for s in names_input]
     names_output = [(s+EOS).ljust(seq_length, PAD) for s in names]
-    names_output = np.array([np.array(list(map(vocab.get, s)))
-                             for s in names_output])
+    names_output = [list(map(vocab.get, s))for s in names_output]
 
     return names_input, names_output, names_length

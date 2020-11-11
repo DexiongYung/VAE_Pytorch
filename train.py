@@ -120,7 +120,6 @@ for epoch in range(args.num_epochs):
     for iteration in range(num_train_data//args.batch_size):
         train_names_input, train_names_output, train_lengths = create_batch(
             names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
-        n = np.random.randint(len(train_names_input), size=args.batch_size)
         x = torch.LongTensor(train_names_input).to(DEVICE)
         y = torch.LongTensor(train_names_output).to(DEVICE)
         l = torch.LongTensor(train_lengths).to(DEVICE)
@@ -138,7 +137,6 @@ for epoch in range(args.num_epochs):
     for iteration in range(num_test_data//args.batch_size):
         test_names_input, test_names_output, test_lengths = create_batch(
             names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
-        n = np.random.randint(len(test_names_input), size=args.batch_size)
         x = torch.LongTensor(test_names_input).to(DEVICE)
         y = torch.LongTensor(test_names_output).to(DEVICE)
         l = torch.LongTensor(test_lengths).to(DEVICE)
