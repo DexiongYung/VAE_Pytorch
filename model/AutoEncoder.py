@@ -135,7 +135,7 @@ class Decoder(nn.Module):
                 input, X_lengths, enforce_sorted=False, batch_first=True)
             out_ps, H = self.lstm(X_ps, H)
             lstm_outs, _ = torch.nn.utils.rnn.pad_packed_sequence(
-                out_ps, batch_first=True, padding_value=self.pad_idx)
+                out_ps, batch_first=True, padding_value=self.pad_idx, total_length=max_len)
             # Reshape because LL is (batch, features)
             lstm_outs = lstm_outs.reshape((batch_size * max_len, -1))
             fc1_outs = self.fc1(lstm_outs)
