@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--name',
                     help='Name to test', type=str, default='Dylan')
 parser.add_argument('--model_name',
-                    help='JSON config and weight name', type=str, default='no_selu_setup')
+                    help='JSON config and weight name', type=str, default='large_params')
 args = parser.parse_args()
 
 NAME = args.name
