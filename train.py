@@ -14,13 +14,13 @@ parser.add_argument('--name',
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
 parser.add_argument('--batch_size', help='batch_size', type=int, default=1)
-parser.add_argument('--latent_size', help='latent_size', type=int, default=400)
+parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
-                    help='unit_size of rnn cell', type=int, default=700)
+                    help='unit_size of rnn cell', type=int, default=1012)
 parser.add_argument('--word_embed_dim',
                     help='Word embedding size', type=int, default=200)
 parser.add_argument(
-    '--num_layers', help='number of rnn layer', type=int, default=3)
+    '--num_layers', help='number of rnn layer', type=int, default=4)
 parser.add_argument('--num_epochs', help='epochs', type=int, default=10000)
 parser.add_argument('--lr', help='learning rate', type=float, default=0.0001)
 parser.add_argument(
@@ -43,8 +43,7 @@ def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor,
     optimizer.zero_grad()
     logits, probs, mu, sigmas = model.forward(
         X, X_lengths, is_teacher_force=True)
-    pad_idx = model.pad_idx
-    loss = ELBO_loss(logits, Y, mu, sigmas, pad_idx)
+    loss = ELBO_loss(logits, Y, mu, sigmas)
     loss.backward()
     optimizer.step
 
@@ -61,9 +60,8 @@ def test(model: AutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.
     return loss
 
 
-def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor, pad_idx: int):
+def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor):
     length = Y.shape[1]
-    criterion = torch.nn.CrossEntropyLoss(ignore_index=pad_idx)
     loss = 0
 
     for i in range(length):
@@ -75,7 +73,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
 
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
-names, name_probs, c_to_n_vocab, n_to_c_vocab, sos_idx, pad_idx, eos_idx = load_data(
+names, name_probs, c_to_n_vocab, n_to_c_vocab, sos_idx, eos_idx = load_data(
     args.name_file)
 
 if args.continue_train:
@@ -91,7 +89,6 @@ if args.continue_train:
 else:
     args.vocab = c_to_n_vocab
     args.sos_idx = sos_idx
-    args.pad_idx = pad_idx
     args.eos_idx = eos_idx
 
     if not path.exists('json'):
@@ -100,8 +97,9 @@ else:
     with open(f'json/{args.name}.json', 'w') as f:
         json.dump(vars(args), f)
 
-model = AutoEncoder(c_to_n_vocab, sos_idx, pad_idx, DEVICE, args)
+model = AutoEncoder(c_to_n_vocab, sos_idx, DEVICE, args)
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
+criterion = torch.nn.CrossEntropyLoss()
 
 total_train_loss = []
 total_test_loss = []
@@ -114,12 +112,11 @@ for epoch in range(args.num_epochs):
     num_test_data = len(names) - num_train_data
 
     SOS = n_to_c_vocab[sos_idx]
-    PAD = n_to_c_vocab[pad_idx]
     EOS = n_to_c_vocab[eos_idx]
 
     for iteration in range(num_train_data//args.batch_size):
         train_names_input, train_names_output, train_lengths = create_batch(
-            names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
+            names, name_probs, args.batch_size, c_to_n_vocab, SOS, EOS)
         x = torch.LongTensor(train_names_input).to(DEVICE)
         y = torch.LongTensor(train_names_output).to(DEVICE)
         l = torch.LongTensor(train_lengths).to(DEVICE)
@@ -136,7 +133,7 @@ for epoch in range(args.num_epochs):
 
     for iteration in range(num_test_data//args.batch_size):
         test_names_input, test_names_output, test_lengths = create_batch(
-            names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
+            names, name_probs, args.batch_size, c_to_n_vocab, SOS, EOS)
         x = torch.LongTensor(test_names_input).to(DEVICE)
         y = torch.LongTensor(test_names_output).to(DEVICE)
         l = torch.LongTensor(test_lengths).to(DEVICE)

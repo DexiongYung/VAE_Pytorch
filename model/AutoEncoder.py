@@ -8,13 +8,12 @@ def init_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str)
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, vocab: dict, sos_idx, pad_idx: int, device: str, args):
+    def __init__(self, vocab: dict, sos_idx, device: str, args):
         super(AutoEncoder, self).__init__()
         self.sos_idx = sos_idx
-        self.pad_idx = pad_idx
         self.device = device
-        self.encoder = Encoder(vocab, pad_idx, device, args)
-        self.decoder = Decoder(vocab, pad_idx, device, args)
+        self.encoder = Encoder(vocab, device, args)
+        self.decoder = Decoder(vocab, device, args)
         self.to(device)
 
     def forward(self, X: torch.Tensor, X_lengths: torch.Tensor, max_len: int = None, is_teacher_force: bool = False):
@@ -37,7 +36,7 @@ class AutoEncoder(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, vocab: dict, pad_idx: int, device: str, args):
+    def __init__(self, vocab: dict, device: str, args):
         super(Encoder, self).__init__()
         self.vocab_size = len(vocab)
         self.hidden_size = args.RNN_hidden_size
@@ -50,14 +49,14 @@ class Encoder(nn.Module):
         self.char_embedder = nn.Embedding(
             num_embeddings=self.vocab_size,
             embedding_dim=self.word_embed_dim,
-            padding_idx=pad_idx
         )
-        # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
-        torch.nn.init.uniform_(self.char_embedder.weight,  -0.1, 0.1)
         self.lstm = nn.LSTM(self.word_embed_dim,
                             self.hidden_size, self.num_layers, batch_first=True)
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
+        # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
+        torch.nn.init.uniform_(self.char_embedder.weight,  -0.1, 0.1)
+
 
     def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor, m: int = 0, d: int = 1):
         batch_size = mu.shape[0]
@@ -97,7 +96,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, vocab: dict, pad_idx: int, device: str, args):
+    def __init__(self, vocab: dict, device: str, args):
         super(Decoder, self).__init__()
         self.vocab_size = len(vocab)
         self.hidden_size = args.RNN_hidden_size
@@ -107,16 +106,15 @@ class Decoder(nn.Module):
         self.device = device
         self.char_embedder = nn.Embedding(
             num_embeddings=self.vocab_size,
-            embedding_dim=self.word_embed_dim,
-            padding_idx=pad_idx
+            embedding_dim=self.word_embed_dim
         )
-        self.pad_idx = pad_idx
-        # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
-        torch.nn.init.uniform_(self.char_embedder.weight, -0.1, 0.1)
         self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
                             self.num_layers, batch_first=True)
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
+
+        # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
+        torch.nn.init.uniform_(self.char_embedder.weight, -0.1, 0.1)
 
     def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, X_lengths: torch.Tensor = None):
         is_teacher_force = X_lengths is not None
@@ -135,7 +133,7 @@ class Decoder(nn.Module):
                 input, X_lengths, enforce_sorted=False, batch_first=True)
             out_ps, H = self.lstm(X_ps, H)
             lstm_outs, _ = torch.nn.utils.rnn.pad_packed_sequence(
-                out_ps, batch_first=True, padding_value=self.pad_idx, total_length=max_len)
+                out_ps, batch_first=True, total_length=max_len)
             # Reshape because LL is (batch, features)
             lstm_outs = lstm_outs.reshape((batch_size * max_len, -1))
             fc1_outs = self.fc1(lstm_outs)
@@ -168,12 +166,11 @@ class NeuralNet(nn.Module):
     def __init__(self, input_size: int, output_size: int):
         super(NeuralNet, self).__init__()
         self.ll = nn.Linear(input_size, output_size)
+        self.selu = nn.SELU()
+
         # Molecular VAE initializes linear layer using Xavier
         torch.nn.init.xavier_uniform_(self.ll.weight)
-        # Trying out SELU, Molecular VAE doesn't use any activations
-        # self.selu = nn.SELU()
 
     def forward(self, X: torch.Tensor):
         X = self.ll(X)
-        return X
-        # return self.selu(X)
+        return self.selu(X)
