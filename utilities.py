@@ -38,15 +38,15 @@ def load_data(n: str, SOS: str = '[', EOS: str = ']', PAD: str = '$'):
 
 def create_batch(all_names: list, batch_size: int, vocab: dict, SOS: str, PAD: str, EOS: str):
     names = np.random.choice(all_names, batch_size, replace=False)
-    # Should be largest name length + SOS + EOS
-    seq_length = len(max(names, key=len)) + 2
+    # Should be largest name length + SOS/EOS
+    seq_length = len(max(names, key=len)) + 1
 
     # Names length should be length of the name + SOS + EOS
-    names_length = np.array([len(n)+2 for n in names])
-    names_input = [(SOS+s+EOS).ljust(seq_length, PAD) for s in names]
+    names_length = np.array([len(n)+1 for n in names])
+    names_input = [(SOS+s).ljust(seq_length, PAD) for s in names]
     names_input = np.array([np.array(list(map(vocab.get, s)))
                             for s in names_input])
-    names_output = [(s+EOS).ljust(seq_length - 1, PAD) for s in names]
+    names_output = [(s+EOS).ljust(seq_length, PAD) for s in names]
     names_output = np.array([np.array(list(map(vocab.get, s)))
                              for s in names_output])
 
