@@ -16,7 +16,7 @@ def plot_losses(losses, folder: str = "plot", filename: str = "checkpoint.png"):
     x = list(range(len(losses)))
     plt.plot(x, losses, 'b--', label="Unsupervised Loss")
     plt.title("Loss Progression")
-    plt.xlabel("Epoch")
+    plt.xlabel("Batch")
     plt.ylabel("Loss")
     plt.legend(loc='upper left')
     plt.savefig(f"{folder}/{filename}")
