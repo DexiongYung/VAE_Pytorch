@@ -66,12 +66,12 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
 
     for i in range(length):
         loss_sum += criterion(Y_hat[:, i, :], Y[:, i])
-    
+
     normalized_loss = loss_sum / batch_size
 
-    KL_divergence = torch.mean(-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
+    latent_loss = torch.mean(-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
 
-    return normalized_loss + KL_divergence
+    return normalized_loss + latent_loss
 
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
@@ -136,7 +136,7 @@ for epoch in range(args.num_epochs):
             total_train_loss.append(np.mean(train_loss))
             plot_losses(total_train_loss, filename=f'{args.name}_train.png')
             train_loss = []
-    
+
     # Run test loss for eval
     for iteration in range(num_test_data//args.batch_size):
         test_names_input, test_names_output, test_lengths = create_batch(
