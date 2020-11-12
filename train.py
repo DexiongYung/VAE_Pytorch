@@ -67,11 +67,9 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
     for i in range(length):
         CE_loss_sum += criterion(Y_hat[:, i, :], Y[:, i])
 
-    CE_normalized_loss = CE_loss_sum / batch_size
-
     latent_loss = torch.mean(-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
 
-    return CE_normalized_loss + latent_loss
+    return CE_loss_sum + latent_loss
 
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
