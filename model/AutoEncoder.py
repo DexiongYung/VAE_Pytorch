@@ -151,7 +151,7 @@ class Decoder(nn.Module):
                 (batch_size, 1))), dim=1).unsqueeze(1)
 
             for i in range(max_len):
-                lstm_out, H = self.lstm(input, H)
+                lstm_out, HC = self.lstm(input, HC)
                 logits = self.fc1(lstm_out)
                 max_chars = torch.argmax(logits, dim=2).squeeze(1)
                 embeded_input = self.char_embedder(max_chars)
