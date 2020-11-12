@@ -62,16 +62,16 @@ def test(model: AutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.
 def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor):
     batch_size = Y.shape[0]
     length = Y.shape[1]
-    loss_sum = 0
+    CE_loss_sum = 0
 
     for i in range(length):
-        loss_sum += criterion(Y_hat[:, i, :], Y[:, i])
+        CE_loss_sum += criterion(Y_hat[:, i, :], Y[:, i])
 
-    normalized_loss = loss_sum / batch_size
+    CE_normalized_loss = CE_loss_sum / batch_size
 
     latent_loss = torch.mean(-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
 
-    return normalized_loss + latent_loss
+    return CE_normalized_loss + latent_loss
 
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
