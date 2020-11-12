@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--name',
                     help='Name to test', type=str, default='Dylan')
 parser.add_argument('--model_name',
-                    help='JSON config and weight name', type=str, default='large_params')
+                    help='JSON config and weight name', type=str, default='original')
 args = parser.parse_args()
 
 NAME = args.name
@@ -22,13 +22,11 @@ t_args.__dict__.update(json_file)
 args = parser.parse_args(namespace=t_args)
 
 SOS_IDX = args.sos_idx
-PAD_IDX = args.pad_idx
 EOS_IDX = args.eos_idx
 VOCAB = args.vocab
 INVERTED_VOCAB = {v: k for k, v in VOCAB.items()}
 
-model = AutoEncoder(args.vocab, args.pad_idx,
-                    args.max_name_length, DEVICE, args)
+model = AutoEncoder(args.vocab, args.max_name_length, DEVICE, args)
 model.load(f'weight/{MODEL_NAME}.path.tar')
 
 length_tensor = torch.LongTensor([len(NAME)])

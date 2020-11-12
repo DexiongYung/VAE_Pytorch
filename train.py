@@ -60,15 +60,18 @@ def test(model: AutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.
 
 
 def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor):
+    batch_size = Y.shape[0]
     length = Y.shape[1]
-    loss = 0
+    loss_sum = 0
 
     for i in range(length):
-        loss += criterion(Y_hat[:, i, :], Y[:, i])
+        loss_sum += criterion(Y_hat[:, i, :], Y[:, i])
+    
+    normalized_loss = loss_sum / batch_size
 
     KL_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return loss + KL_divergence
+    return normalized_loss + KL_divergence
 
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
