@@ -75,7 +75,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
 
 
 # Generate number to char dict, char to number dict, sos, pad and eos idx, put all names into a list
-names, name_probs, c_to_n_vocab, n_to_c_vocab, sos_idx, eos_idx = load_data(
+names, name_probs, c_to_n_vocab, n_to_c_vocab, sos_idx, pad_idx, eos_idx = load_data(
     args.name_file)
 
 if args.continue_train:
@@ -88,6 +88,7 @@ else:
     args.vocab = c_to_n_vocab
     args.sos_idx = sos_idx
     args.eos_idx = eos_idx
+    args.pad_idx = pad_idx
 
     if not path.exists(args.weight_dir):
         os.mkdir(args.weight_dir)
@@ -98,13 +99,14 @@ else:
     with open(f'json/{args.name}.json', 'w') as f:
         json.dump(vars(args), f)
 
-model = AutoEncoder(c_to_n_vocab, sos_idx, DEVICE, args)
+model = AutoEncoder(DEVICE, args)
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss(ignore_index=pad_idx)
 
 total_train_loss = []
 total_test_loss = []
 
+# Run through data for num_epochs
 for epoch in range(args.num_epochs):
     train_loss = []
     test_loss = []
@@ -114,10 +116,13 @@ for epoch in range(args.num_epochs):
 
     SOS = n_to_c_vocab[sos_idx]
     EOS = n_to_c_vocab[eos_idx]
+    PAD = n_to_c_vocab[pad_idx]
 
+    # Train on num_train_data with batch size
     for iteration in range(num_train_data//args.batch_size):
         train_names_input, train_names_output, train_lengths = create_batch(
-            names, name_probs, args.batch_size, c_to_n_vocab, SOS, EOS)
+            names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
+        # x = name in index form inputs, y = name in index form labels, l = name lengths
         x = torch.LongTensor(train_names_input).to(DEVICE)
         y = torch.LongTensor(train_names_output).to(DEVICE)
         l = torch.LongTensor(train_lengths).to(DEVICE)
@@ -131,10 +136,11 @@ for epoch in range(args.num_epochs):
             total_train_loss.append(np.mean(train_loss))
             plot_losses(total_train_loss, filename=f'{args.name}_train.png')
             train_loss = []
-
+    
+    # Run test loss for eval
     for iteration in range(num_test_data//args.batch_size):
         test_names_input, test_names_output, test_lengths = create_batch(
-            names, name_probs, args.batch_size, c_to_n_vocab, SOS, EOS)
+            names, name_probs, args.batch_size, c_to_n_vocab, SOS, PAD, EOS)
         x = torch.LongTensor(test_names_input).to(DEVICE)
         y = torch.LongTensor(test_names_output).to(DEVICE)
         l = torch.LongTensor(test_lengths).to(DEVICE)

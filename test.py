@@ -26,7 +26,7 @@ EOS_IDX = args.eos_idx
 VOCAB = args.vocab
 INVERTED_VOCAB = {v: k for k, v in VOCAB.items()}
 
-model = AutoEncoder(args.vocab, args.max_name_length, DEVICE, args)
+model = AutoEncoder(DEVICE, args)
 model.load(f'weight/{MODEL_NAME}.path.tar')
 
 length_tensor = torch.LongTensor([len(NAME)])
