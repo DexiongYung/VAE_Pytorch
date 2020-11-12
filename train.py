@@ -69,7 +69,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
     
     normalized_loss = loss_sum / batch_size
 
-    KL_divergence = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()))
+    KL_divergence = torch.mean(-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
 
     return normalized_loss + KL_divergence
 
