@@ -67,7 +67,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
     for i in range(length):
         CE_loss_sum += criterion(Y_hat[:, i, :], Y[:, i])
 
-    latent_entropy = torch.mean(0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
+    latent_entropy = torch.sum(0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
 
     return CE_loss_sum - latent_entropy
 
