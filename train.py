@@ -54,8 +54,7 @@ def test(model: AutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.
     model.eval()
     with torch.no_grad():
         logits, probs, mu, sigmas = model.forward(X, X_lengths)
-        pad_idx = model.pad_idx
-        loss = ELBO_loss(logits, Y, mu, sigmas, pad_idx)
+        loss = ELBO_loss(logits, Y, mu, sigmas)
 
     return loss
 
