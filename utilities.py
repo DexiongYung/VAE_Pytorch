@@ -25,8 +25,8 @@ def plot_losses(losses, folder: str = "plot", filename: str = "checkpoint.png"):
 
 def load_data(n: str, SOS: str = '[', PAD: str = '$', EOS: str = ']'):
     df = pd.read_csv(n)
-    names = df['name'].tolist()
-    name_probs = df['probs'].tolist()
+    names = df['name'].iloc[:100].tolist()
+    name_probs = df['probs'].iloc[:100].tolist()
     chars = string.ascii_letters + SOS + PAD + EOS
     c_to_n_vocab = dict(zip(chars, range(len(chars))))
     n_to_c_vocab = dict(zip(range(len(chars)), chars))
