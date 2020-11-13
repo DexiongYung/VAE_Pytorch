@@ -13,7 +13,7 @@ parser.add_argument('--name',
                     help='Session name', type=str, default='original')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=5000)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=100)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
@@ -35,7 +35,7 @@ parser.add_argument('--continue_train',
                     help='Continue training', type=bool, default=False)
 args = parser.parse_args()
 
-DEVICE = "cpu"
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
@@ -67,7 +67,7 @@ def ELBO_loss(Y_hat: torch.Tensor, Y: torch.Tensor, mu: torch.Tensor, logvar: to
     for i in range(length):
         CE_loss_sum += criterion(Y_hat[:, i, :], Y[:, i])
 
-    latent_entropy = torch.mean(0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
+    latent_entropy = torch.sum(0.5 * (1 + logvar - mu.pow(2) - logvar.exp()))
 
     return CE_loss_sum - latent_entropy
 
