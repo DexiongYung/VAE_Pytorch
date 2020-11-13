@@ -10,7 +10,7 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='original')
+                    help='Session name', type=str, default='new_eps')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
 parser.add_argument('--batch_size', help='batch_size', type=int, default=100)
