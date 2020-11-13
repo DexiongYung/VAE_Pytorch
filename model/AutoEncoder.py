@@ -55,18 +55,20 @@ class Encoder(nn.Module):
                             self.hidden_size, self.num_layers, batch_first=True)
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
+
+        # Sample added noise from normal distribution
+        mu_tensor = torch.zeros((args.batch_size, args.latent_size)) + 0
+        sd_tensor = torch.zeros((args.batch_size, args.latent_size)) + 1
+        self.eps = torch.distributions.Normal(mu_tensor, sd_tensor).sample()
+
         # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
         torch.nn.init.uniform_(self.char_embedder.weight,  -0.1, 0.1)
 
-    def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor, mean: int = 0, std_dev: int = 1):
+    def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor):
         batch_size = mu.shape[0]
         latent_size = mu.shape[1]
         sd = torch.exp(0.5 * log_sigma)
-        # Sample added noise from normal distribution
-        mu_tensor = torch.zeros((batch_size, latent_size)) + mean
-        sd_tensor = torch.zeros((batch_size, latent_size)) + std_dev
-        eps = torch.distributions.Normal(mu_tensor, sd_tensor).sample()
-        sample = mu + (eps * sd)
+        sample = mu + (self.eps * sd)
 
         return sample
 
