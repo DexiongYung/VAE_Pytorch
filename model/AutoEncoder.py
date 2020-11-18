@@ -15,7 +15,7 @@ class VariationalAutoEncoder(nn.Module):
         if max_len is None:
             max_len = X.shape[1]
 
-        Z, mu, logit_sigma = self.encoder.forward(X, X_lengths)
+        Z, mu, logit_sigma = self.encoder.forward(X)
         if is_teacher_force:
             logits, probs = self.decoder.forward(X, Z)
         else:
@@ -39,7 +39,7 @@ class Encoder(nn.Module):
         self.word_embed_dim = args.word_embed_dim
         self.latent_size = args.latent_size
         # MLPs should take the hidden state size, which is num_layers * hidden_size
-        self.mlp_input_size = self.hidden_size
+        self.mlp_input_size = self.hidden_size * self.num_layers * 2
         self.device = device
         self.eps = args.eps
         self.char_embedder = nn.Embedding(
@@ -47,7 +47,7 @@ class Encoder(nn.Module):
             embedding_dim=self.word_embed_dim,
             padding_idx=args.pad_idx
         )
-        self.gru = nn.GRU(self.word_embed_dim,
+        self.lstm = nn.LSTM(self.word_embed_dim,
                           self.hidden_size, self.num_layers, batch_first=True)
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
@@ -62,18 +62,17 @@ class Encoder(nn.Module):
 
         return sample
 
-    def forward(self, X: torch.Tensor, X_lengths: torch.Tensor):
-        batch_size = X.shape[0]
+    def forward(self, X: torch.Tensor):
         X_embed = self.char_embedder(X)
 
-        # Forward through X_pps to get hidden and cell states
-        _, HC = self.gru(X_embed)
+        _, HC = self.lstm(X_embed)
 
-        # Get mu and sigma
-        mu = self.mu_mlp(HC[0])
-        logit_sigma = self.sigma_mlp(HC[0])
+        H = torch.cat((HC[0], HC[1]), 2)
 
-        # Use reparam trick to sample latents
+        C = torch.flatten(torch.transpose(H, 0, 1), 1, 2)
+        mu = self.mu_mlp(C)
+        logit_sigma = self.sigma_mlp(C)
+
         z = self.reparam_trick(mu, logit_sigma)
 
         return z, mu, logit_sigma
@@ -94,7 +93,7 @@ class Decoder(nn.Module):
             embedding_dim=self.word_embed_dim,
             padding_idx=args.pad_idx
         )
-        self.gru = nn.GRU(self.latent_size + self.word_embed_dim, self.hidden_size,
+        self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
                           self.num_layers, batch_first=True)
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
@@ -113,7 +112,7 @@ class Decoder(nn.Module):
             max_len = X.shape[1]
             Z = Z.unsqueeze(1).repeat(1, max_len, 1)
             input = torch.cat((Z, embeded_input), dim=2)
-            out, H = self.gru(input)
+            out, H = self.lstm(input)
             # Reshape because LL is (batch, features)
             out_reshape = out.contiguous().view(-1, out.size(-1))
             fc1_outs = self.fc1(out_reshape)
@@ -126,7 +125,7 @@ class Decoder(nn.Module):
                 (batch_size, 1))), dim=1).unsqueeze(1)
 
             for i in range(max_len):
-                lstm_out, HC = self.gru(input, HC)
+                lstm_out, HC = self.lstm(input, HC)
                 logits = self.fc1(lstm_out)
                 max_chars = torch.argmax(logits, dim=2).squeeze(1)
                 embeded_input = self.char_embedder(max_chars)
@@ -149,7 +148,7 @@ class NeuralNet(nn.Module):
         self.selu = nn.SELU()
 
         # Molecular VAE initializes linear layer using Xavier
-        torch.nn.init.xavier_uniform_(self.ll.weight)
+        torch.nn.init.xavier_normal_(self.ll.weight)
 
     def forward(self, X: torch.Tensor):
         X = self.ll(X)

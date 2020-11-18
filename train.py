@@ -23,7 +23,8 @@ parser.add_argument(
     '--num_layers', help='number of rnn layer', type=int, default=3)
 parser.add_argument('--num_epochs', help='epochs', type=int, default=1000)
 parser.add_argument('--lr', help='learning rate', type=float, default=1e-8)
-parser.add_argument('--eps', help='Error applied to sampling', type=float, default=1e-2)
+parser.add_argument('--eps', help='Error applied to sampling',
+                    type=float, default=1e-2)
 parser.add_argument(
     '--percent_train', help='Percent of the data used for training', type=float, default=0.75)
 parser.add_argument('--name_file', help='CSVs of names for training and testing',
@@ -82,7 +83,6 @@ if args.continue_train:
     t_args = argparse.Namespace()
     t_args.__dict__.update(json_file)
     args = parser.parse_args(namespace=t_args)
-    model.load(f'{args.weight_dir}/{args.name}')
 else:
     args.vocab = c_to_n_vocab
     args.sos_idx = sos_idx
@@ -101,6 +101,9 @@ else:
 model = VariationalAutoEncoder(DEVICE, args)
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 criterion = torch.nn.CrossEntropyLoss(ignore_index=pad_idx)
+
+if args.continue_train:
+    model.load(f'{args.weight_dir}/{args.name}.path.tar')
 
 total_train_loss = []
 total_test_loss = []
