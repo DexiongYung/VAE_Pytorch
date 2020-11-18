@@ -1,12 +1,6 @@
 import torch
 import torch.nn as nn
 
-
-def init_cell_and_hidd(num_layers: int, batch_size: int, hidden_size: int, device: str):
-    return (torch.zeros(num_layers, batch_size, hidden_size).to(device),
-            torch.zeros(num_layers, batch_size, hidden_size).to(device))
-
-
 class AutoEncoder(nn.Module):
     def __init__(self, device: str, args):
         super(AutoEncoder, self).__init__()
@@ -22,7 +16,7 @@ class AutoEncoder(nn.Module):
 
         Z, mu, logit_sigma = self.encoder.forward(X, X_lengths)
         if is_teacher_force:
-            logits, probs = self.decoder.forward(X, Z, X_lengths=X_lengths)
+            logits, probs = self.decoder.forward(X, Z)
         else:
             decoder_input = torch.LongTensor([self.sos_idx]).to(self.device)
             logits, probs = self.decoder.forward(decoder_input, Z, max_len)
@@ -51,8 +45,8 @@ class Encoder(nn.Module):
             embedding_dim=self.word_embed_dim,
             padding_idx=args.pad_idx
         )
-        self.lstm = nn.LSTM(self.word_embed_dim,
-                            self.hidden_size, self.num_layers, batch_first=True)
+        self.gru = nn.GRU(self.word_embed_dim,
+                          self.hidden_size, self.num_layers, batch_first=True)
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
 
@@ -72,15 +66,10 @@ class Encoder(nn.Module):
 
     def forward(self, X: torch.Tensor, X_lengths: torch.Tensor):
         batch_size = X.shape[0]
-        HC = init_cell_and_hidd(self.num_layers, batch_size,
-                                self.hidden_size, self.device)
         X_embed = self.char_embedder(X)
-        # Pack padded sequence runs through LSTM
-        X_pps = torch.nn.utils.rnn.pack_padded_sequence(
-            X_embed, X_lengths, enforce_sorted=False, batch_first=True)
 
         # Forward through X_pps to get hidden and cell states
-        _, HC = self.lstm(X_pps, HC)
+        _, HC = self.gru(X_embed)
 
         # Linear layers require batch first, batch in dim=1 in hidden states transpose required
         # flatten num layers and hidden state dims together
@@ -111,38 +100,30 @@ class Decoder(nn.Module):
             embedding_dim=self.word_embed_dim,
             padding_idx=args.pad_idx
         )
-        self.lstm = nn.LSTM(self.latent_size + self.word_embed_dim, self.hidden_size,
-                            self.num_layers, batch_first=True)
+        self.gru = nn.GRU(self.latent_size + self.word_embed_dim, self.hidden_size,
+                          self.num_layers, batch_first=True)
         self.fc1 = NeuralNet(self.hidden_size, self.vocab_size)
         self.softmax = torch.nn.Softmax(dim=2)
 
         # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
         torch.nn.init.uniform_(self.char_embedder.weight, -0.1, 0.1)
 
-    def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None, X_lengths: torch.Tensor = None):
-        is_teacher_force = X_lengths is not None
+    def forward(self, X: torch.Tensor, Z: torch.Tensor, max_len: int = None):
+        is_teacher_force = X is not None
         batch_size = Z.shape[0]
-        HC = init_cell_and_hidd(self.num_layers, batch_size,
-                                self.hidden_size, self.device)
 
         # Embed input
         embeded_input = self.char_embedder(X)
 
         if is_teacher_force:
             max_len = X.shape[1]
-            input = torch.cat((Z.unsqueeze(1).repeat(
-                (1, max_len, 1)), embeded_input), dim=2)
-            # Pack sequence runs entire sequence through LSTM
-            X_ps = torch.nn.utils.rnn.pack_padded_sequence(
-                input, X_lengths, enforce_sorted=False, batch_first=True)
-            out_ps, H = self.lstm(X_ps, HC)
-            # Convert from pack output to tensor form
-            lstm_outs, _ = torch.nn.utils.rnn.pad_packed_sequence(
-                out_ps, batch_first=True, total_length=max_len, padding_value=self.pad_idx)
+            Z = Z.unsqueeze(1).repeat(1, max_len, 1)
+            input = torch.cat((Z, embeded_input), dim=2)
+            out, H = self.gru(input)
             # Reshape because LL is (batch, features)
-            lstm_outs = lstm_outs.reshape((batch_size * max_len, -1))
-            fc1_outs = self.fc1(lstm_outs)
-            all_logits = fc1_outs.reshape((batch_size, max_len, -1))
+            out_reshape = out.contiguous().view(-1, out.size(-1))
+            fc1_outs = self.fc1(out_reshape)
+            all_logits = fc1_outs.contiguous().view(out.size(0), -1, fc1_outs.size(-1))
         else:
             all_logits = None
 
@@ -151,7 +132,7 @@ class Decoder(nn.Module):
                 (batch_size, 1))), dim=1).unsqueeze(1)
 
             for i in range(max_len):
-                lstm_out, HC = self.lstm(input, HC)
+                lstm_out, HC = self.gru(input, HC)
                 logits = self.fc1(lstm_out)
                 max_chars = torch.argmax(logits, dim=2).squeeze(1)
                 embeded_input = self.char_embedder(max_chars)
