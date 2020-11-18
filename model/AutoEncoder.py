@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 
-class AutoEncoder(nn.Module):
+class VariationalAutoEncoder(nn.Module):
     def __init__(self, device: str, args):
-        super(AutoEncoder, self).__init__()
+        super(VariationalAutoEncoder, self).__init__()
         self.sos_idx = args.sos_idx
         self.device = device
         self.encoder = Encoder(device, args)

@@ -1,4 +1,4 @@
-from model.AutoEncoder import AutoEncoder
+from model.AutoEncoder import VariationalAutoEncoder
 from utilities import *
 from os import path
 import torch.optim as optim
@@ -38,7 +38,7 @@ args = parser.parse_args()
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
+def fit(model: VariationalAutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.train()
     optimizer.zero_grad()
     logits, probs, mu, sigmas = model.forward(
@@ -50,7 +50,7 @@ def fit(model: AutoEncoder, optimizer, X: torch.Tensor, X_lengths: torch.Tensor,
     return loss
 
 
-def test(model: AutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
+def test(model: VariationalAutoEncoder, X: torch.Tensor, X_lengths: torch.Tensor, Y: torch.Tensor):
     model.eval()
     with torch.no_grad():
         logits, probs, mu, sigmas = model.forward(X, X_lengths)
@@ -97,7 +97,7 @@ else:
     with open(f'json/{args.name}.json', 'w') as f:
         json.dump(vars(args), f)
 
-model = AutoEncoder(DEVICE, args)
+model = VariationalAutoEncoder(DEVICE, args)
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 criterion = torch.nn.CrossEntropyLoss(ignore_index=pad_idx)
 
