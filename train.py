@@ -13,7 +13,7 @@ parser.add_argument('--name',
                     help='Session name', type=str, default='new_eps')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=100)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=300)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
@@ -22,7 +22,7 @@ parser.add_argument('--word_embed_dim',
 parser.add_argument(
     '--num_layers', help='number of rnn layer', type=int, default=3)
 parser.add_argument('--num_epochs', help='epochs', type=int, default=1000)
-parser.add_argument('--lr', help='learning rate', type=float, default=0.0001)
+parser.add_argument('--lr', help='learning rate', type=float, default=1e-8)
 parser.add_argument(
     '--percent_train', help='Percent of the data used for training', type=float, default=0.75)
 parser.add_argument('--name_file', help='CSVs of names for training and testing',

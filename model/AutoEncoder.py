@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class AutoEncoder(nn.Module):
     def __init__(self, device: str, args):
         super(AutoEncoder, self).__init__()
@@ -49,10 +50,6 @@ class Encoder(nn.Module):
                           self.hidden_size, self.num_layers, batch_first=True)
         self.mu_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
         self.sigma_mlp = NeuralNet(self.mlp_input_size, self.latent_size)
-
-        # Sample added noise from normal distribution
-        mu_tensor = torch.zeros((args.batch_size, args.latent_size)) + 0
-        sd_tensor = torch.zeros((args.batch_size, args.latent_size)) + 1
 
         # Molecular SMILES VAE initialized embedding to uniform [-0.1, 0.1]
         torch.nn.init.uniform_(self.char_embedder.weight,  -0.1, 0.1)
