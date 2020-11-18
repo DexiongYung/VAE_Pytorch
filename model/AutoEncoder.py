@@ -39,7 +39,7 @@ class Encoder(nn.Module):
         self.word_embed_dim = args.word_embed_dim
         self.latent_size = args.latent_size
         # MLPs should take the hidden state size, which is num_layers * hidden_size
-        self.mlp_input_size = self.num_layers * self.hidden_size
+        self.mlp_input_size = self.hidden_size
         self.device = device
         self.char_embedder = nn.Embedding(
             num_embeddings=self.vocab_size,
@@ -68,13 +68,10 @@ class Encoder(nn.Module):
         # Forward through X_pps to get hidden and cell states
         _, HC = self.gru(X_embed)
 
-        # Linear layers require batch first, batch in dim=1 in hidden states transpose required
-        # flatten num layers and hidden state dims together
-        H = torch.flatten(HC[0].transpose(0, 1), 1, 2)
 
         # Get mu and sigma
-        mu = self.mu_mlp(H)
-        logit_sigma = self.sigma_mlp(H)
+        mu = self.mu_mlp(HC[0])
+        logit_sigma = self.sigma_mlp(HC[0])
 
         # Use reparam trick to sample latents
         z = self.reparam_trick(mu, logit_sigma)
