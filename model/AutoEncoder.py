@@ -114,9 +114,7 @@ class Decoder(nn.Module):
             input = torch.cat((Z, embeded_input), dim=2)
             out, H = self.lstm(input)
             # Reshape because LL is (batch, features)
-            out_reshape = out.contiguous().view(-1, out.size(-1))
-            fc1_outs = self.fc1(out_reshape)
-            all_logits = fc1_outs.contiguous().view(out.size(0), -1, fc1_outs.size(-1))
+            all_logits = self.fc1(out)
         else:
             all_logits = None
 
