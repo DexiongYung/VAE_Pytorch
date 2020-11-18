@@ -10,10 +10,10 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name',
-                    help='Session name', type=str, default='new_eps')
+                    help='Session name', type=str, default='batch_1')
 parser.add_argument('--max_name_length',
                     help='Max name generation length', type=int, default=40)
-parser.add_argument('--batch_size', help='batch_size', type=int, default=300)
+parser.add_argument('--batch_size', help='batch_size', type=int, default=1)
 parser.add_argument('--latent_size', help='latent_size', type=int, default=200)
 parser.add_argument('--RNN_hidden_size',
                     help='unit_size of rnn cell', type=int, default=512)
