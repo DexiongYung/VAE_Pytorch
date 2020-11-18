@@ -23,6 +23,7 @@ parser.add_argument(
     '--num_layers', help='number of rnn layer', type=int, default=3)
 parser.add_argument('--num_epochs', help='epochs', type=int, default=1000)
 parser.add_argument('--lr', help='learning rate', type=float, default=1e-8)
+parser.add_argument('--eps', help='Error applied to sampling', type=float, default=1e-2)
 parser.add_argument(
     '--percent_train', help='Percent of the data used for training', type=float, default=0.75)
 parser.add_argument('--name_file', help='CSVs of names for training and testing',

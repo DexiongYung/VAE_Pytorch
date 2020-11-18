@@ -41,6 +41,7 @@ class Encoder(nn.Module):
         # MLPs should take the hidden state size, which is num_layers * hidden_size
         self.mlp_input_size = self.hidden_size
         self.device = device
+        self.eps = args.eps
         self.char_embedder = nn.Embedding(
             num_embeddings=self.vocab_size,
             embedding_dim=self.word_embed_dim,
@@ -56,7 +57,7 @@ class Encoder(nn.Module):
 
     def reparam_trick(self, mu: torch.Tensor, log_sigma: torch.Tensor):
         sd = torch.exp(0.5 * log_sigma)
-        eps = 1e-2 * torch.randn_like(sd)
+        eps = self.eps * torch.randn_like(sd)
         sample = mu + (eps * sd)
 
         return sample
@@ -67,7 +68,6 @@ class Encoder(nn.Module):
 
         # Forward through X_pps to get hidden and cell states
         _, HC = self.gru(X_embed)
-
 
         # Get mu and sigma
         mu = self.mu_mlp(HC[0])
